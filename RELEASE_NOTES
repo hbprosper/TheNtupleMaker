@@ -1,0 +1,423 @@
+$Revision: 1.43 $
+
+v5_6_3 Sept. 7 2013
+-------------------
+	1. Provide a better workaround the use of new C++ constructs in 
+	HLTConfigProvider etc. that causes codes using HelperFor not to
+	compile. HelperFor no longer includes the HLTConfigProvider, Event,
+	and ParameterSet headers. Instead HelperFor uses forward declarations 
+	and the headers are included in the codes that include the header for 
+	HelperFor.
+	The hacked HLTConfigProvider header has been removed from the release.
+	2. Add Sam's rmhelper.py script, which removes the specified helper from
+	a local release.
+
+	3. Now under git control. The new repository for TNM is at
+
+		https://github.com/hbprosper/SusySapien.git 
+
+v5_5_2 July 10 2013
+-------------------
+	1. Fix the Makefile created by mkanalyzer.py so that it is unnecessary
+	to use LD_LIBRARY_PATH. Do this usig -Wl,-rparh,$(DEFAULT-PATH) switch 
+	to the linker.
+	2. Simplify mkanalzyer.py. This is possible because we now rely on the
+	config file to provide unique names for objects.
+	3. Verify that the analyzer compiles and runs both on SLC5 as well as
+	on Darwin (a Mac).
+
+v5_5_0 July 8 2013
+------------------
+	1. The language of the analyzer and the macro are now the same. In 
+	particular, the analyzer now uses the initialize, select mechanism to
+	declare objects to be selected and to select them. Since this is an
+	important revision, we bump up the 2nd index.
+	2. The utilities have been moved to a header <analyzer-mame>util.h.
+
+
+v5_4_5 July 6 2013
+------------------
+	1. Fix bug in analyzer Makefile: make sure shared library name is
+	lib<analyzer-name>.so
+	2. Create a separate fill<object>() function for each struct.
+	Example:
+		fillGenParticle()
+		fillGsfElectron()
+
+	fillObjects() still exists. It simply calls all  fill object functions
+
+v5_4_4 July 5 2013
+------------------
+	1. Names of structs taken as names given in the "buffers" list in the
+	configuration file.
+	2. The macro and analyzer now use exactly the same variables and structs
+	
+
+v5_4_3 July 5 2013
+------------------
+	1. mkmacro.py now defers most of the work to mkanalyzer.py. The macro
+	code is now placed in directory and (macro).mk is now called Makefile
+	2. mkntuplecfi.py simplifies the names of the buffers by stripping away
+	namespaces and the word "Helper"
+	3. Can now store singlets of bools (though not tested)
+	4. treestream uses fixes from Sezen
+	5. OutputFile::count can now take floating values
+	
+
+v5_4_2 July 4 2013
+------------------
+	1. Use names listed in buffers in config as names of C++ structs
+	2. Add src, include, and lib directory to analyzer directory and
+	   improve Makefile
+
+v5_4_1 June 5 2012
+------------------
+	1. Remove counter variable [..] from listing provided by treestream::str()
+	2. Remove setting of object counter in saveSelectedObject function
+	   created by mkanalyzer.py
+
+v5_4_0 May 19 2012
+------------------
+	1. Fix typo in macro headers. 
+
+v5_3_9 May 15 2012
+------------------
+	1. warn about duplicate branch names (but exclude the duplicates)
+	2. changed warning in helper headers
+	3. add reminder about macroName in macro headers
+	4. small change to macro example
+
+v5_3_8 May 13 2012
+------------------
+	1. New range mechanism:
+
+		int value("HLT_Jet50_v1..3")
+
+	   automatically expands to
+
+		int value("HLT_Jet50_v1")
+		int value("HLT_Jet50_v2")
+		int value("HLT_Jet50_v3")
+
+	2. New wildcard mechanism:
+
+		int value("HLT_*(Fat|Di)Jet*")
+	
+	   automatically matches all trigers of the form HLT_*FatJet*, 
+	   HLT_*DiJet* and includes branches for each in the ntuple. 
+	   Note: this uses the trigger list available at the first call to
+       beginRun(...)
+
+	3. triggerNames.txt now accumulates all trigger names 
+	   encountered during the job.
+
+	4. Add a few more comments to macro headers.
+
+	5. Include all object counters (e.g., nelectron, nmuon, etc.)
+
+v5_3_7 May 11 2012
+------------------
+    1. Add process.load("L1TriggerConfig.L1GtConfigProducers.L1GtConfig_cff")
+	   to config file. This is needed to initialize HLTConfigProducer
+	   correctly.
+	2. Add a warning in helper headers that some methods may need to be
+	   commented out
+	3. Include all methods in helper headers but comment out those
+	   containing at least one argument of non-fundamental type
+	4. add initTNM.py script (and delete initTNMwCMG.py)
+ 	
+	
+v5_3_5 May 07 2012
+------------------
+	1. TriggerResultsHelper::value and prescale now return -1 if no trigger
+	   of a given name exists.
+	
+v5_3_4 May 06 2012
+------------------
+	1. Fix bug in mkhelper.py - mkhelper.py should now return all methods
+	   with arguments of fundamental types
+	2. Verified that the selection mechanism in helpers, based on the use of
+	   the count variable, works
+	3. Trap errors in TriggerHelper rather than crash 
+
+
+v5_3_3 May 05 2012
+------------------
+        1. remove CMGTools from plugins by default
+ 
+v5_3_2 May 04 2012
+------------------
+	1. place reflex utilities into ReflexLib.py
+	2. re-write mkmacro.py - addition of user-defined variables works, as does
+	   event selection. There is a bug in the object selection - to be fixed 
+	   next release
+	3. add methods to helper automatically so that help has the same
+	   methods as the helped object
+	4. change format of plugins - now use COLLECTION and SINGLETON types
+	5. use try except to catch trigger setup problems
+	6. streamline the way classes.txt is created
+
+v5_3_1 Apr 15 2012
+------------------
+	1. add exclusionlist.txt (to exclude unwanted classes)
+
+v5_3_0 Apr 11 2012
+------------------
+        1. Fix initTNMwCMG.py
+        2. Make (minor) mods to compile in CMSSW_5_2_3_patch2
+
+v5_2_8 Apr 03 2012
+------------------
+	1. Fix typo in initTNMwCMG.py
+
+v5_2_7 Mar 31 2012
+------------------
+	1. change ntuplecfi.py to ntuple_cfi.py. (update mkntuplecfi.py)
+	2. change config.py    to <package>_cfg.py. mkpackage.py updated 
+	3. update mkpackage.py to use new naming scheme
+	4. mkclasslist.py now handles objects such as DiObject<c1, c2>. Changed
+       classes.txt to classlist.txt
+	5. mkplugins.py now updates BuildFiles with packages required to
+	   compile and link plugins.
+	6. added initTNMwCMG.py, which can be used to initialize TheNtupleMaker by
+	   creating python/classmap.py, plugins/classlist.txt and 
+	   plugins/plugins*.cc
+	7. mkanalyzer.py now permits the saving of selected objects.
+
+
+v5_2_6 Aug 13 2011
+------------------
+	1. Fix usage of LHAPDF in GenEventProductInfoHelper.
+
+v5_2_4 Aug 08 2011
+------------------
+	1. Fix <label>/<prefix> bug
+
+v5_2_3 Aug 08 2011
+------------------
+	1. Modified GenEventInfoProductHelper.cc to use new param mechanism.
+	2. Introduce variable prefix mechanism
+					<label>/<prefix>
+	e.g.
+	GenEventInfoProductHelper	generator/cteq		
+
+
+v5_2_2 Aug 01 2011
+------------------
+	1. Introduced param keyword in buffers. Helper classes can accessed buffer
+	specific parameters using the method paramater(string) >> value
+	2. Fix bug in mkhelper.py
+
+	
+v5_2_0 Jul 22 2011
+------------------
+	1. Fix duplicate class bug in classes_def.xml
+	2. make block, buffer, and label names available to helpers
+	3. undo is broken for now!
+
+v5_1_9 Jul 20 2011
+------------------
+	1. Work with BuildFile.xml only and update mkpackage.py and mkhelper.py
+	accordingly.
+	2. Call HLTConfigProvider from beginRun() in TheNtupleMaker.
+	3. Make pointer, hltconfig, to HLTConfigProvider available to all helpers
+	and update HelperFor and Configuration accordingly.
+	4. Remove HLT config set up from TriggerResultsHelper in user.cc.
+	5. Fix problem with simple types in mkanalyzer.py
+	6. Make mkvariables.py produce exactly the same variable names as 
+	TheNtupleMaker.
+
+v5_1_8 Jun 25 2011
+------------------
+	Add support for unsigned int, float, and vectors thereof.
+
+v5_1_7 Jun 24 2011
+------------------
+	use getenv instead of gSystem->Getenv().
+
+v5_1_6 Jun 24 2011
+------------------
+	1. Add option to save ints and vectors of ints.
+	2. Get provenance info using gSystem->Getenv(..)
+
+v5_1_5 Jun 07 2011
+------------------
+	Introduce the switch "crashOnInvalidHandle". When set to zero, 
+	TheNtupleMaker will not crash if a handle is zero but merely issue
+	an InvalidHandle warning.
+
+v5_1_3 Jun 06 2011
+------------------
+	1. Allow for matches between std::string and std::basic_string>char> in 
+	decodeArguments in rfx.cc. This is needed to handle arguments such as
+	const std::string& used in userFloat(const std::string&).
+
+v5_1_1 May 23 2011
+------------------
+	1. Add an (optional) flushEvent method to helpers. This method is called
+	at the end of the event loop.
+
+v5_1_0 May 23 2011
+------------------
+	1. explicitly call destructors for objects returned by value. An example
+	of a method that does this is pat::Jet::correctedJet("Uncorrected"), which
+	returns a pat::Jet by value.
+
+	2. add memmon.py to help monitor memory of the specified program:
+
+		memmon.py cmsRun
+
+
+v5_0_9 May 19 2011
+------------------
+	1. create a single shared library from user and package plugins.
+	2. drop EDM_PLUGIN flag from plugins/BuildFile.xml. This seems not be to
+	needed anymore.
+	3. mkplugins.py no longer modifies the BuildFile in the plugins directory.
+
+v5_0_8 May   18 2011
+--------------------
+	1. group plugins into four plugin files. This is a compromise between 
+	having one or all plugins per file.
+
+   	2. Add missing scripts mkmacro.py and mkhelper.py
+
+v5_0_7 May   12 2011
+--------------------
+   Add missing scripts mkmacro.py and mkhelper.py
+
+v5_0_4 May   06 2011
+--------------------
+    1. Force CVS to preserve file modes 
+
+v5_0_3 May   06 2011
+--------------------
+    1. Force CVS to preserve file modes 
+
+v5_0_2 May   06 2011
+--------------------
+    1. No change, just a trying to test something
+
+v5_0_1 May   04 2011
+--------------------
+	1. Rename Mkntuple to TheNtupleMaker. Since this is a major change, we
+	go to v5_0_1.
+
+    2. Use mkpackage.py instead of mksubpkg.py to be consistent with CMS
+	jargon
+
+	3. Bug fix: include dependency on PhysicsTools/TheNtupleMaker in the 
+	BuildFile of a user package. This seems to trigger the scanning of 
+	classes.h. But why is unclear.
+ 
+v4_1_7 May   03 2011
+--------------------
+    1. Minor change
+
+v4_1_6: Apr. 30 2011
+--------------------
+	1. Return -9999 for any method call that fails.
+
+	2. PoissonGammaFit now allows the fixing of yields. This has been tested
+	by Josh in the RA2b group. The optional use of weighted histograms has
+	been implemented: the add method now has two optional arguments:
+
+	add(source,			source counts 
+
+				optional arguments
+
+		fixed, 			true if the yield for this source is to be held fixed
+		dsource)  		source count uncertainties
+
+	Remember to get Root to return correct bin errors for weighted histograms,
+	be sure to call Sumw2() method for the histogram before filling it.
+
+	3. Changed the default save directory for the GUI to python. You will be
+	warned if a file with the same name exists in the directory.
+
+	4. Split plugins.cc into separate files, one per plugin. This was done to
+	permit the use of scram b -jN to compile where "N" is the number of jobs to
+	run in parallel. Typically, N is set to the number of machine cores 
+	available. 
+
+	5. TriggerResultsHelper now has an additional method:
+
+		unsigned int prescale(std::string)
+
+	which returns the prescale associated with the high-level trigger (HLT).
+	For MC files, the method returns 1. The prescale method uses code from
+	Josh, which uses the HLTConfigProvider. The prescale code has not been
+	tested.
+
+v4_1_5: Apr. 20 2011
+--------------------
+	1. Include GenRun* in the list of generator classes to be tested for
+	in Buffer.h and UserBuffer.h. If Gen classes are requested but the file
+	contains real data, the Gen classes are ignored. This way, exactly the
+	same ntuplecfi.py configuration fragment can be run on data and MC.
+
+v4_1_4: Apr. 14 2011
+--------------------
+	1. Fixed Slot - now uses unsigned long for addresses rather than 
+	unsigned int
+
+	2. Added new BuildFile formats
+
+v4_1_3: Mar. 12 2011
+--------------------
+	1. Fixed variable naming bug in mkanalyzer.py
+	2. rename mkselector.py to mkusermacro.py
+
+	mkusermacro.py creates the template for a user-defined macro that is
+	designed to be called by TheNtupleMaker. It is created using an existing
+	variables.txt file. The macro can be used to add user-defined variables
+	to the ntuple and perform event selection. See the example in the template.
+
+	Example:
+
+		mkusermacro.py mymacro
+
+	creates
+		mymacro.cc
+		mymacro.h
+		mymacro.mk
+
+	which can be compiled and linked using
+
+		make -f mymacro.mk
+	
+	This creates libmymacro.so. To load this macro into TheNtupleMaker add
+	
+		macroName = cms.untracked.string("mymacro.cc"),
+
+	to 
+		cms.EDAnalyzer("TheNtupleMaker",..
+	
+	
+
+v4_1_2:	Feb. 17 2011
+--------------------
+	1. Merged histogramFile and skimFile into outputFile:
+
+	Call
+		outputFile(cmdline.outputfilename)
+
+	to write out histograms only and
+
+		outputFile(cmdline.outputfilename, stream)
+
+	to write out histograms and a tree containing skimmed events.
+
+
+	2. Added GenEventInfoProductHelper.
+
+	This returns 45 PDF weights per event
+		0	central value of PDFs
+		1..	shifted values (1 to 44 for GTEQ)
+
+	See genlevel.py in PhysicsTools/TheNtupleMaker/python for example of usage.
+
+
+	3. Make mkvariables.py work on a larger class of simple ntuples
+
+
