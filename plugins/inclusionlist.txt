@@ -1,0 +1,2 @@
+std::vector<reco::CaloCluster>
+std::vector<reco::VertexCompositeCandidate>
