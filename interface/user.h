@@ -20,13 +20,16 @@
 #include <map>
 
 #include "FWCore/Common/interface/TriggerNames.h"
-#include "FWCore/Framework/interface/Event.h"
-#include "FWCore/ParameterSet/interface/ParameterSet.h"
-//#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
 #include "DataFormats/Common/interface/TriggerResults.h"
 #include "DataFormats/METReco/interface/HcalNoiseRBX.h"
 #include "PhysicsTools/TheNtupleMaker/interface/HelperFor.h"
 //-----------------------------------------------------------------------------
+namespace edm
+{
+  class Event;
+  class ParameterSet;
+}
+
 namespace reco
 {
   //---------------------------------------------------------------------------

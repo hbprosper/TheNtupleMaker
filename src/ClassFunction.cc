@@ -27,6 +27,7 @@
 #include <string>
 #include <stdlib.h>
 //-----------------------------------------------------------------------------
+#include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Utilities/interface/Exception.h"
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 #include "PhysicsTools/TheNtupleMaker/interface/ClassFunction.h"

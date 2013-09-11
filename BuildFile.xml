@@ -9,6 +9,7 @@
 <use   name="L1Trigger/GlobalTriggerAnalyzer"/>
 <use   name="HLTrigger/HLTcore"/>
 
+<use   name="AnalysisDataFormats/CMGTools"/>
 <use   name="AnalysisDataFormats/EWK"/>
 <use   name="AnalysisDataFormats/Egamma"/>
 <use   name="AnalysisDataFormats/SUSYBSMObjects"/>

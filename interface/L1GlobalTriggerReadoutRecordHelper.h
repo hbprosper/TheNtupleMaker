@@ -14,7 +14,6 @@
 #include <map>
 #include "PhysicsTools/TheNtupleMaker/interface/HelperFor.h"
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutRecord.h"
-#include "L1Trigger/GlobalTriggerAnalyzer/interface/L1GtUtils.h"
 //-----------------------------------------------------------------------------
 // Note: The following variables are automatically defined and available to
 //       all methods:
@@ -28,6 +27,8 @@
 //       its default value of 1 by the helper. However, items 1-5 should not
 //       be changed.
 //-----------------------------------------------------------------------------
+
+class L1GtUtils;
 
 /// A helper for L1GlobalTriggerReadoutRecord.
 class L1GlobalTriggerReadoutRecordHelper : 
@@ -52,6 +53,6 @@ public:
   
 private:
   // -- internals
-  L1GtUtils l1gtutils;
+  L1GtUtils* l1gtutils;
 };
 #endif

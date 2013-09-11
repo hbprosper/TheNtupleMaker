@@ -7,6 +7,7 @@
 <use   name="PhysicsTools/Utilities"/>
 <use   name="PhysicsTools/PatUtils"/>
 
+<use   name="AnalysisDataFormats/CMGTools"/>
 <use   name="AnalysisDataFormats/EWK"/>
 <use   name="AnalysisDataFormats/Egamma"/>
 <use   name="AnalysisDataFormats/SUSYBSMObjects"/>

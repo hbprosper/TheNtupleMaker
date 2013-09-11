@@ -14,9 +14,9 @@
 #include "PhysicsTools/TheNtupleMaker/interface/ClassFunction.h"
 #include "PhysicsTools/TheNtupleMaker/interface/ClassMembers.h"
 //-----------------------------------------------------------------------------
-#include "FWCore/Framework/interface/Event.h"
-#include "FWCore/ParameterSet/interface/ParameterSet.h"
-#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
+//#include "FWCore/Framework/interface/Event.h"
+//#include "FWCore/ParameterSet/interface/ParameterSet.h"
+//#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
 //-----------------------------------------------------------------------------
 #include "TLorentzVector.h"
 #include "TH1F.h"

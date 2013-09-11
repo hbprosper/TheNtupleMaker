@@ -12,14 +12,19 @@
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
+#include "L1Trigger/GlobalTriggerAnalyzer/interface/L1GtUtils.h"
 //-----------------------------------------------------------------------------
 using namespace std;
 //-----------------------------------------------------------------------------
 // This constructor is called once per job
 L1GlobalTriggerReadoutRecordHelper::L1GlobalTriggerReadoutRecordHelper()
-  : HelperFor<L1GlobalTriggerReadoutRecord>() {}
+  : HelperFor<L1GlobalTriggerReadoutRecord>(),
+    l1gtutils(new L1GtUtils()) {}
     
-L1GlobalTriggerReadoutRecordHelper::~L1GlobalTriggerReadoutRecordHelper() {}
+L1GlobalTriggerReadoutRecordHelper::~L1GlobalTriggerReadoutRecordHelper() 
+{
+  if ( l1gtutils ) delete l1gtutils;
+}
 
 // -- Called once per event
 void L1GlobalTriggerReadoutRecordHelper::analyzeEvent()
@@ -34,7 +39,7 @@ void L1GlobalTriggerReadoutRecordHelper::analyzeEvent()
   if ( event == 0 )
     throw cms::Exception("NullEventPointer");
 
-  l1gtutils.retrieveL1EventSetup(*eventsetup);
+  l1gtutils->retrieveL1EventSetup(*eventsetup);
 }
 
 // -- Access Methods
@@ -44,9 +49,9 @@ L1GlobalTriggerReadoutRecordHelper::value(std::string name, int code) const
   const string triggername(name);
   int err=0;
   if ( code < 0 )
-    return (bool)l1gtutils.decisionBeforeMask(*event, triggername, err);
+    return (bool)l1gtutils->decisionBeforeMask(*event, triggername, err);
   else
-    return (bool)l1gtutils.decisionBeforeMask(*event, triggername, err);
+    return (bool)l1gtutils->decisionBeforeMask(*event, triggername, err);
 }
 
 int
@@ -54,5 +59,5 @@ L1GlobalTriggerReadoutRecordHelper::prescale(std::string name) const
 {
   const string triggername(name);
   int err=0;
-  return (int)l1gtutils.prescaleFactor(*event, triggername, err);
+  return (int)l1gtutils->prescaleFactor(*event, triggername, err);
 }

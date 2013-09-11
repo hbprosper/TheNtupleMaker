@@ -14,8 +14,6 @@
 #include <map>
 #include <vector>
 #include <string>
-//#include "FWCore/Framework/interface/Event.h"
-#include "PhysicsTools/TheNtupleMaker/interface/BufferUtil.h"
 
 namespace edm {
 class Event;

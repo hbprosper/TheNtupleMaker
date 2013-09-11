@@ -36,6 +36,13 @@
 #include "PhysicsTools/TheNtupleMaker/interface/colors.h"
 #include "PhysicsTools/TheNtupleMaker/interface/Method.h"
 // ----------------------------------------------------------------------------
+namespace edm
+{
+  class Event;
+  class EventSetup;
+  class Run;
+}
+
 struct VariableDescriptor
 {
   VariableDescriptor()
