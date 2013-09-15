@@ -5,13 +5,14 @@
 #          22-Jul-2011 HBP - fix duplicate HelperFor bug
 #          22-Apr-2012 HBP - use SINGLETON and COLLECTION keywords
 #          03-May-2012 HBP - add methods automatically
+#          15-Sep-2012 HBP - need to import time and rstrip
 #
 #$Id: mkhelper.py,v 1.14 2013/07/05 21:01:54 prosper Exp $
 #------------------------------------------------------------------------------
 import os, sys, re
 from string import atof, atoi, replace, lower,\
-	 upper, joinfields, split, strip, find
-from time import sleep, ctime
+	 upper, joinfields, split, strip, find, rstrip
+from time import sleep, ctime, time
 from glob import glob
 from getopt     import getopt, GetoptError
 

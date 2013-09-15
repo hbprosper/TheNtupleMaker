@@ -1,5 +1,9 @@
 $Revision: 1.43 $
 
+v5_6_5 Sept.11 2013
+-------------------
+	1. Remove MethodT* from release. Works now for 7_0_0_pre2.
+
 v5_6_4 Sept.10 2013
 -------------------
 	1. Better workaround works for 6_0_0, but fails for 7_0_0_pre2. Try using

@@ -1,4 +1,4 @@
-# Created: Tue Sep 10 01:07:51 2013
+# Created: Wed Sep 11 15:01:22 2013
 # Version: CMSSW_6_0_1
 ClassToHeaderMap = {\
 'ATest': 'PhysicsTools/TheNtupleMaker/interface/ClassFunction.h',
@@ -660,8 +660,6 @@ ClassToHeaderMap = {\
 'MediumProperties': 'DataFormats/GeometrySurface/interface/MediumProperties.h',
 'MemoryHog': 'PhysicsTools/TheNtupleMaker/interface/ClassFunction.h',
 'Method': 'PhysicsTools/TheNtupleMaker/interface/Method.h',
-'MethodT': 'PhysicsTools/TheNtupleMaker/interface/MethodT.h',
-'MethodTBase': 'PhysicsTools/TheNtupleMaker/interface/MethodTBase.h',
 'MixCollection': 'SimDataFormats/CrossingFrame/interface/MixCollection.h',
 'MixCollection::MixItr': 'SimDataFormats/CrossingFrame/interface/MixCollection.h',
 'MixCollection::range': 'SimDataFormats/CrossingFrame/interface/MixCollection.h',
