@@ -12,6 +12,7 @@
 #          31-Mar-2012 HBP   use simplified classes.txt format. change name
 #                            to classlist.txt
 #          22-Apr-2012 HBP   use SINGLETON and COLLECTION keywords
+#          15-Nov-2013 HBP   split into 25 plugin files (up from 12)
 #$Id: mkplugins.py,v 1.23 2013/07/05 23:02:36 prosper Exp $
 #------------------------------------------------------------------------------
 import os, sys, re
@@ -34,7 +35,7 @@ if PACKAGE == None:
 
 LOCALBASE = "%s/src" % os.environ['CMSSW_BASE']
 
-NPLUGINS  = 12 # split plugins into this number of files
+NPLUGINS  = 30 # number of plugins/file 
 #------------------------------------------------------------------------------
 getlibs = re.compile(r'(?<=name=").*?(?=")')
 PLUGINS_BUILDFILE ='''<use   name="FWCore/FWLite"/>
@@ -136,7 +137,7 @@ cnames = map(exclass,
 names  = {'time': ctime()}
 
 # Split across several plugin files
-npmax = 1 + len(cnames)/NPLUGINS
+npmax = NPLUGINS
 np = 0
 nplugin = 0 # plugin file number
 
@@ -169,7 +170,7 @@ for index, (ctype, name) in enumerate(cnames):
 	np += 1
 	if np == 1:
 		nplugin += 1
-		pluginname = "plugins%2.2d" % nplugin
+		pluginname = "plugins%3.3d" % nplugin
 		print "\n=> plugin file plugins/%s.cc" % pluginname 
 		out  = open("plugins/%s.cc" % pluginname, "w")
 		names['pluginname'] = pluginname
@@ -204,12 +205,8 @@ for index, (ctype, name) in enumerate(cnames):
 	# add buffer specific header
 
 	record = '''
-std::string %(buffername)s_n("%(classname)s");
-typedef Buffer<%(classname)s,
-               &%(buffername)s_n, %(ctype)s>
-%(buffername)s_t;
-DEFINE_EDM_PLUGIN(BufferFactory, %(buffername)s_t,
-                  "%(buffername)s");
+typedef Buffer<%(classname)s,%(ctype)s> %(buffername)s_t;
+DEFINE_EDM_PLUGIN(BufferFactory,%(buffername)s_t,"%(buffername)s");
 				  ''' % names
 	#out.write(record)
 	outrecs.append(record)

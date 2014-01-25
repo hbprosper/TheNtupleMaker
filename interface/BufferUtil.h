@@ -12,7 +12,7 @@
 //                   -9999
 //                   Sun Apr 22 2012 HBP introduce Caller object and
 //                                   ClassType
-//                   Thu Jul 04 2013 HBP - add objectname to argument fof init
+//                   Thu Jul 04 2013 HBP - add objectname to argument of init
 //                                   by default objectname = name of block
 //                                   in config file
 //

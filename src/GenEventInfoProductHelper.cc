@@ -45,15 +45,17 @@ GenEventInfoProductHelper::GenEventInfoProductHelper()
 
   nset_ = atoi(snset.c_str());
 
-  string snpdfset = parameter("numberOfPDFSets");
-  if ( snpdfset == "" )
-    throw cms::Exception("PDFSetsError") 
-      << "Please specify numberOfPDFSets in buffer: "
-      << blockname << endl; 
+  
+//   string snpdfset = parameter("numberOfPDFSets");
+//   if ( snpdfset == "" )
+//     throw cms::Exception("PDFSetsError") 
+//       << "Please specify numberOfPDFSets in buffer: "
+//       << blockname << endl; 
 
-  npdfset_ = atoi(snpdfset.c_str());
+  //npdfset_ = atoi(snpdfset.c_str());
   
   LHAPDF::initPDFSet(nset_, pdfsetname_);
+  npdfset_ = LHAPDF::numberPDF(nset_);
 
   cout << endl << "\t==> using PDF set:      " << pdfsetname_ << endl;
   cout << endl << "\t==> number of PDF sets: " << npdfset_ << endl;

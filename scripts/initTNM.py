@@ -5,7 +5,8 @@
 #  2. scripts/mkclasslist.py
 #  3. scripts/mkplugins.py
 #
-# Created 2 Apr 2012 Harrison B. Prosper
+# Created  2 Apr 2012 Harrison B. Prosper
+#         24 Jan 2014 HBP: call scram set lhapdffull  
 #------------------------------------------------------------------------------
 import os, sys
 from string import atof, atoi, replace, lower,\
@@ -26,6 +27,10 @@ os.system("chmod +x scripts/*.py")
 if not os.environ.has_key("CMSSW_BASE"):
         print "\t* Please remember \n\t\tcmsenv\n"
         sys.exit(0)
+
+# Set up full LHAPDF
+
+os.system("scram set lhapdffull")
 
 # Add link to TheNtupleMaker
 

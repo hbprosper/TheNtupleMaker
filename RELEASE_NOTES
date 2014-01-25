@@ -1,5 +1,13 @@
 $Revision: 1.43 $
 
+v5_6_6 Jan. 24 2014
+-------------------
+	1. Handle duplicate branchnames in BufferUtil.cc
+	2. Set number of plugins/file to 30 in mkplugins.py
+	3. Get number of PDF members/PDF set automatically in
+	   GenEventProductInfoHelper
+	4. Add PDFexample_cfi.py to python directory
+
 v5_6_5 Sept.11 2013
 -------------------
 	1. Remove MethodT* from release. Works now for 7_0_0_pre2.

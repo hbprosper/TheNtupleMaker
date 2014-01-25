@@ -14,6 +14,11 @@
 //                                   name in the variables.txt file will be
 //                                   the same as that specified in the config
 //                                   file.
+//                   Fri Jan 24 2014 HBP - get number of members in PDF set 
+//                                   using LHAPDF::numberPDF().
+//                                   If a branchname is not unique, make it
+//                                   unique by adding buffer name to branch
+//                                   name.
 //
 // $Id: BufferUtil.cc,v 1.6 2013/07/05 07:15:14 prosper Exp $
 //-----------------------------------------------------------------------------
@@ -183,25 +188,27 @@ void initializeBuffer(otreestream& out,
                   << std::endl;      
 
       // create branch name 
-      std::string branchname = prefix + "." + varname;
+      std::string  branchname = prefix + "." + varname;
 
       // check for uniqueness
       if ( branchset.find(branchname) != branchset.end() )
         {
+          std::string newbranchname =
+            prefix + "_" + objectname + "." + varname;
+            
           edm::LogWarning("BranchNotUnique")
-            << "\t...Fee fi fo fum" 
-            << std::endl
-            << "\t...I smell the blood of an Englishman"
-            << std::endl
-            << "\t...Be he alive, or be he dead"
-            << std::endl
-            << "\t...I'll grind his bones to make my bread"
-            << std::endl
+            << "Fee fi fo fum\n"
+            << "I smell the blood of an Englishman\n"
+            << "Be he alive, or be he dead\n"
+            << "I'll grind his bones to make my bread\n"
             << "This branch (" 
             << BOLDRED << branchname 
-            << DEFAULT_COLOR << ") is NOT unique!"
+            << DEFAULT_COLOR << ") is NOT unique!\n"
+            << "Change name to \n"
+            << BOLDBLUE << newbranchname
+            << DEFAULT_COLOR 
             << std::endl;
-          continue;
+          branchname = newbranchname;
         }
       branchset.insert(branchname);
 

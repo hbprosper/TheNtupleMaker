@@ -29,7 +29,7 @@
 //                   Sun Apr 22 2012 HBP - Use Caller object
 //                   Mon May 07 2012 HBP - Skip classes LHEEventProduct and
 //                                         PileupSummaryInfo for real data.
-//                   Thu Jul 04 2013 HBP - add objectname to argument fof init
+//                   Thu Jul 04 2013 HBP - add objectname to argument of init
 //                                   by default objectname = name of block
 //                                   in config file
 //
@@ -69,14 +69,14 @@
     - X = type of object extracted using getByLabel (extractable object)
     - CTYPE = <i>SINGLETON, COLLECTION, CONTAINER</i> 
 */
-template <typename X, std::string* CNAME, ClassType CTYPE>
+template <typename X, ClassType CTYPE>
 struct Buffer  : public BufferThing
 {
   ///
   Buffer() 
     : out_(0),
       objectname_(""),
-      classname_(*CNAME),
+      classname_(boost::python::type_id<X>().name()),
       label_(""),
       label1_(""),
       label2_(""),
