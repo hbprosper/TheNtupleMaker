@@ -35,7 +35,7 @@ if PACKAGE == None:
 
 LOCALBASE = "%s/src" % os.environ['CMSSW_BASE']
 
-NPLUGINS  = 30 # number of plugins/file 
+NPLUGINS  = 10 # number of plugins/file 
 #------------------------------------------------------------------------------
 getlibs = re.compile(r'(?<=name=").*?(?=")')
 PLUGINS_BUILDFILE ='''<use   name="FWCore/FWLite"/>
@@ -55,7 +55,7 @@ PLUGINS_BUILDFILE ='''<use   name="FWCore/FWLite"/>
 <use   name="boost_regex"/>
 <use   name="rootminuit"/>
 <use   name="rootmath"/>
-<use   name="rootrflx"/>
+<use   nam="rootrflx"/>
 
 <library   file="TheNtupleMaker.cc"></library>
 <library   file="TestMethod.cc"></library>

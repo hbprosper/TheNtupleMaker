@@ -7,7 +7,6 @@
 <use   name="PhysicsTools/Utilities"/>
 <use   name="PhysicsTools/PatUtils"/>
 
-<use   name="AnalysisDataFormats/CMGTools"/>
 <use   name="AnalysisDataFormats/EWK"/>
 <use   name="AnalysisDataFormats/Egamma"/>
 <use   name="AnalysisDataFormats/SUSYBSMObjects"/>
@@ -47,7 +46,6 @@
 <use   name="DataFormats/L1GlobalTrigger"/>
 <use   name="DataFormats/L1Trigger"/>
 <use   name="DataFormats/LTCDigi"/>
-<use   name="DataFormats/METObjects"/>
 <use   name="DataFormats/METReco"/>
 <use   name="DataFormats/MuonData"/>
 <use   name="DataFormats/MuonDetId"/>
@@ -56,13 +54,14 @@
 <use   name="DataFormats/ParticleFlowCandidate"/>
 <use   name="DataFormats/ParticleFlowReco"/>
 <use   name="DataFormats/PatCandidates"/>
+<use   name="DataFormats/Phase2TrackerDigi"/>
 <use   name="DataFormats/Provenance"/>
 <use   name="DataFormats/RPCDigi"/>
 <use   name="DataFormats/RecoCandidate"/>
 <use   name="DataFormats/Scalers"/>
+<use   name="DataFormats/SiPixelCluster"/>
 <use   name="DataFormats/SiPixelDigi"/>
 <use   name="DataFormats/SiPixelRawData"/>
-<use   name="DataFormats/SiStripCluster"/>
 <use   name="DataFormats/SiStripCommon"/>
 <use   name="DataFormats/SiStripDigi"/>
 <use   name="DataFormats/TauReco"/>
@@ -97,7 +96,7 @@
 <use   name="boost_regex"/>
 <use   name="rootminuit"/>
 <use   name="rootmath"/>
-<use   name="rootrflx"/>
+<use   nam="rootrflx"/>
 
 <library   file="TheNtupleMaker.cc"></library>
 <library   file="TestMethod.cc"></library>

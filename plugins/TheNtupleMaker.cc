@@ -1013,7 +1013,7 @@ TheNtupleMaker::beginRun(const edm::Run& run,
   vout << "tree: Events " << ct << endl;
   
   // ---------------------------------------------------------------
-  // Create a buffers of appropriate type. Make sure to eliminate
+  // Create buffers of appropriate type. Make sure to eliminate
   // duplicates, but warn that this is being done  
   // ---------------------------------------------------------------
   set<string> branchset;
@@ -1042,8 +1042,8 @@ TheNtupleMaker::beginRun(const edm::Run& run,
         cout 
           << "  create buffer: " << bufferName_[i] << endl;
 
-      // First cache block name, buffer name and get by label so that they are
-      // available when the buffer is created.
+      // First cache block name, buffer name and get by label so that 
+      // they are available when the buffer is created.
 
       Configuration::instance().set(blockName_[i], 
                                     bufferName_[i], 

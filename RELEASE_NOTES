@@ -1,5 +1,14 @@
 $Revision: 1.43 $
 
+v6_0_0 Dec. 16 2014
+-------------------
+	1. Major change to mkanalyzer.py. Variables are now encapsulated 
+	within a struct (eventStream).
+	2. Python version of analyzer uses exactly the same code as C++
+	version
+	3. mkmacro.py disabled until further notice
+	4. Compilation still glacial under new compiler
+
 v5_6_6 Jan. 24 2014
 -------------------
 	1. Handle duplicate branchnames in BufferUtil.cc

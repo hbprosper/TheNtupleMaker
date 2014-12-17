@@ -18,7 +18,7 @@ from ROOT import *
 from string import atof, atoi, replace, lower,\
 	 upper, joinfields, split, strip, find, rfind
 from time import sleep, ctime
-from elementtree.ElementTree import Element
+from xml.etree.ElementTree import Element
 from getopt import getopt
 from PhysicsTools.TheNtupleMaker.classmap import ClassToHeaderMap
 from PhysicsTools.TheNtupleMaker.Lib import \

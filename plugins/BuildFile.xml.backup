@@ -1,13 +1,11 @@
-<use   name="FWCore/Framework"/>
+<use   name="FWCore/FWLite"/>
 <use   name="FWCore/PluginManager"/>
 <use   name="FWCore/MessageLogger"/>
-<use   name="FWCore/ParameterSet"/>
 
-<use   name="PhysicsTools/PatUtils"/>
+<use   name="PhysicsTools/TheNtupleMaker"/>
 <use   name="PhysicsTools/UtilAlgos"/>
-<use   name="CommonTools/Utils"/>
-<use   name="L1Trigger/GlobalTriggerAnalyzer"/>
-<use   name="HLTrigger/HLTcore"/>
+<use   name="PhysicsTools/Utilities"/>
+<use   name="PhysicsTools/PatUtils"/>
 
 <use   name="AnalysisDataFormats/EWK"/>
 <use   name="AnalysisDataFormats/Egamma"/>
@@ -91,20 +89,15 @@
 <use   name="SimDataFormats/ValidationFormats"/>
 <use   name="SimDataFormats/Vertex"/>
 
-<use   name="hepmc"/>
-<use   name="heppdt"/>
-<use   name="clhep"/>
 <use   name="lhapdf"/>
 <use   name="f77compiler"/>
+<use   name="boost"/>
 <use   name="boost_python"/>
 <use   name="boost_regex"/>
 <use   name="rootminuit"/>
 <use   name="rootmath"/>
-<use   name="boost"/>
 <use   name="rootrflx"/>
-<lib   name="Gui"/>
-<lib   name="Postscript"/>
 
-<export>
-  <lib   name="1"/>
-</export>
+<library   file="TheNtupleMaker.cc"></library>
+<library   file="TestMethod.cc"></library>
+<library   file="*plugin*.cc" name="bufferplugins"></library>

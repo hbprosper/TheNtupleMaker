@@ -362,7 +362,8 @@ veryclean   :
 #------------------------------------------------------------------------------
 def main():
 	print "\n\tmkmacro.py"
-
+	print "\n** sorry - this is currently under re-development **\n"
+	sys.exit()
 	# Decode command line
 
 	argv = sys.argv[1:]

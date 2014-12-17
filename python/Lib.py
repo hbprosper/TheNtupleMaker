@@ -9,7 +9,7 @@
 #---------------------------------------------------------------------------
 import os, sys, re, posixpath
 from string import *
-from elementtree.ElementTree import ElementTree
+from xml.etree.ElementTree import ElementTree
 from xml.parsers.expat import ExpatError
 #---------------------------------------------------------------------------
 WEIRD        = '<|<@&@>|>'

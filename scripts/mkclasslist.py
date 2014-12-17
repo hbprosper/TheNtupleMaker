@@ -10,6 +10,7 @@
 #                      classes
 #          18-Apr-2012 HBP use inclusionlist.txt to include specific
 #                      classes not picked up automatically
+#          11-Dec-2014 HBP Adapt to CMSSW_7_2_3
 #$Id: mkclasslist.py,v 1.23 2013/07/05 21:01:54 prosper Exp $
 #------------------------------------------------------------------------------
 import os, sys, re
@@ -17,6 +18,7 @@ from ROOT import *
 from string import atof, atoi, replace, lower,\
 	 upper, joinfields, split, strip, find
 from time import sleep, ctime
+from glob import glob
 from PhysicsTools.TheNtupleMaker.Lib import cmsswProject, fixName
 from PhysicsTools.TheNtupleMaker.ReflexLib import findHeaders, getFullname
 from PhysicsTools.TheNtupleMaker.classmap import ClassToHeaderMap
@@ -113,23 +115,27 @@ for value in values:
 records = records.keys()
 records.sort()
 
-# Get list of classes from classes_def.xml
+# Get list of classes from classes_def*.xml
 # Assume that those bounded by Wrappers are the
 # ones that can potentially be stored in a Root file
 
-wclasses = []
+wclassesmap = {}
+count = 0
 for record in records:
-	xmlfile = "%s/%s/src/classes_def.xml" % (LOCALBASE, record)
-	if not os.path.exists(xmlfile):
-		xmlfile = "%s/%s/src/classes_def.xml" % (BASE, record)
-		if not os.path.exists(xmlfile): continue
+	xmlfiles = glob("%s/%s/src/classes_def*.xml" % (LOCALBASE, record))
+	xmlfiles += glob("%s/%s/src/classes_def*.xml" % (BASE, record))
+	for xmlfile in xmlfiles:
+		recs = os.popen('grep "edm::Wrapper" %s' % xmlfile).readlines()
+		for rec in recs:
+			classname = getClass(rec)
+			if classname == None: continue
+			if not wclassesmap.has_key(classname):
+				wclassesmap[classname] = 1
+				count += 1
+				print "\t%5d ==> %s" % (count, classname)
+wclasses = wclassesmap.keys()
+print
 
-	recs = os.popen('grep "edm::Wrapper" %s' % xmlfile).readlines()
-	for rec in recs:
-		classname = getClass(rec)
-		if classname == None: continue
-		wclasses.append(classname)
-		
 # ---------------------------------------
 # Add classes listed in inclusionlist.txt
 # ---------------------------------------
