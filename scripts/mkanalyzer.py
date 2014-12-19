@@ -15,6 +15,8 @@
 #                            counter
 #          04-Jul-2013 HBP - make a better analyzer work area
 #          14-Dec-2014 HBP - encapsulate variables within eventStream class
+#          17-Dec-2014 HBP - change to eventBuffer since that is a better
+#                            name for this class
 #
 #$Id: mkanalyzer.py,v 1.25 2013/07/11 01:54:22 prosper Exp $
 #------------------------------------------------------------------------------
@@ -113,7 +115,7 @@ LINKDEF = \
 
 #pragma link C++ class itreestream;
 #pragma link C++ class otreestream;
-#pragma link C++ class eventStream;
+#pragma link C++ class eventBuffer;
 
 %(pragma)s
 #endif
@@ -141,10 +143,10 @@ MACRO_IMPL_H =\
 '''
 
 TEMPLATE_H =\
-'''#ifndef EVENTSTREAM_H
-#define EVENTSTREAM_H
+'''#ifndef EVENTBUFFER_H
+#define EVENTBUFFER_H
 //-----------------------------------------------------------------------------
-// File:        eventStream.h
+// File:        eventBuffer.h
 // Description: Analyzer header for ntuples created by TheNtupleMaker
 // Created:     %(time)s by mkanalyzer.py
 // Author:      %(author)s
@@ -162,16 +164,16 @@ TEMPLATE_H =\
 #include <cassert>
 #include "treestream.h"
 
-struct eventStream : public itreestream
+struct eventBuffer
 {
   //---------------------------------------------------------------------------
   // --- Declare variables
   //---------------------------------------------------------------------------
 %(vardecl)s
   //--------------------------------------------------------------------------
-  // --- Structs can be filled by calling fillObjects(), or individual fill
+  // --- Structs can be filled by calling fill(), or individual fill
   // --- methods, e.g., fillElectrons()
-  // --- after the call to readEvent(...)
+  // --- after the call to read(...)
   //----------- --------------------------------------------------------------
 %(structdecl)s
 %(structimpl)s
@@ -180,27 +182,48 @@ struct eventStream : public itreestream
   //--------------------------------------------------------------------------
 %(selectimpl)s
   //--------------------------------------------------------------------------
-  eventStream() {}
-  eventStream(std::vector<std::string>& filenames, std::string treename)
-    : itreestream(filenames, treename)
-    {
-      if ( !good() ) 
-        {
-          std::cout << "eventStream - unable to open ntuple file(s)" 
-                    << std::endl;
-	      exit(0);
-        }
-%(init)s
-%(selection)s
-    }
-
-
-  // --- indexmap keeps track of which objects have been flagged for selection
-  std::map<std::string, std::vector<int> > indexmap;
-      
-  void readEvent(int entry)
+  // A read-only buffer 
+  eventBuffer() : input(0), output(0) {}
+  eventBuffer(itreestream& stream)
+  : input(&stream),
+    output(0)
   {
-    read(entry);
+    if ( !input->good() ) 
+      {
+        std::cout << "eventBuffer - please check stream!" 
+                  << std::endl;
+	exit(0);
+      }
+    initBuffers();
+
+%(setb)s
+  }
+
+  // A write-only buffer
+  eventBuffer(otreestream& stream)
+  : input(0),
+    output(&stream)
+  {
+    initBuffers();
+
+%(addb)s
+  }
+
+  void initBuffers()
+  {
+%(init)s
+  }
+      
+  void read(int entry)
+  {
+    if ( !input ) 
+      { 
+        std::cout << "** eventBuffer::read - first  call read-only constructor!"
+                  << std::endl;
+        assert(0);
+      }
+    input->read(entry);
+
     // clear indexmap
     for(std::map<std::string, std::vector<int> >::iterator
     item=indexmap.begin(); 
@@ -209,12 +232,12 @@ struct eventStream : public itreestream
     item->second.clear();
   }
 
-  void selectObject(std::string objname)
+  void select(std::string objname)
   {
     indexmap[objname] = std::vector<int>();
   }
 
-  void selectObject(std::string objname, int index)
+  void select(std::string objname, int index)
   {
     try
      {
@@ -222,11 +245,41 @@ struct eventStream : public itreestream
      }
     catch (...)
      {
-       std::cout << "*** perhaps you failed to call select for " 
-                 << objname << std::endl;
+       std::cout << "** eventBuffer::select - first call select(""" 
+                 << objname << """)" 
+                 << std::endl;
        assert(0);
     }
-  }  
+  }
+
+ void ls()
+ {
+   if( input ) input->ls();
+ }
+
+ int size()
+ {
+   if( input ) 
+     return input->size();
+   else
+     return 0;
+ }
+
+ void close()
+ {
+   if( input )   input->close();
+   if( output ) output->close();
+ }
+
+ // --- indexmap keeps track of which objects have been flagged for selection
+ std::map<std::string, std::vector<int> > indexmap;
+
+ // to read events
+ itreestream* input;
+
+ // to write events
+ otreestream* output;
+
 }; 
 #endif
 '''
@@ -241,15 +294,15 @@ TEMPLATE_CC =\
 Notes 1
 -------
     1. Use
-    outputFile of(cl.outputfile, es)
+    outputFile of(cl.outputfile, ev)
 
-    where "es" is the eventStream, if you wish to skim events to the output
+    where "ev" is the eventBuffer, if you wish to skim events to the output
     file in addition to writing out histograms. The current event is written
     to the file using
 
-    of.writeEvent(event-weight) 
+    of.write(event-weight) 
 
-    where "of" is the output file object. If omitted, the event-weight is
+    where "of" is the output file. If omitted, the event-weight is
     taken to be 1.
 
     2. Use
@@ -270,26 +323,26 @@ Notes 2
     By default, when an event is written to the output file, all variables are
     written. However, before the event loop, you can use
 
-    es.selectObject(objectname)
+    ev.select(objectname)
 
     e.g.,
 
-    es.selectObject("GenParticle")
+    ev.select("GenParticle")
 
     to declare that you intend to select objects of this type. The
     selection is done, within the event loop, using
 
-    es.selectObject(objectname, index)
+    ev.select(objectname, index)
 
     e.g.,
 
-    es.selectObject("GenParticle", 3),
+    ev.select("GenParticle", 3),
 
     which specifies that object 3 of GenParticle is to be kept. 
 
     NB: If you declare your intention to select objects of a given type
-        by calling selectObject(objectname), but subsequently fail to select
-        them using selectObject(objectname, index) then no objects of this
+        by calling select(objectname), but subsequently fail to select
+        them using select(objectname, index) then no objects of this
         type will be kept!
 */
 // Created:     %(time)s by mkanalyzer.py
@@ -310,11 +363,14 @@ int main(int argc, char** argv)
   // Get names of ntuple files to be processed
   vector<string> filenames = fileNames(cl.filelist);
 
-  // Open a stream of events
-  eventStream es(filenames, "Events");
+  // Create tree reader
+  itreestream stream(filenames, "Events");
+  if ( !stream.good() ) error("can't read root input files");
+
+  // Create a buffer to receive events from the stream
+  eventBuffer ev(stream);
   
-  // Get number of events
-  int nevents = es.size();
+  int nevents = ev.size();
   cout << "number of events: " << nevents << endl;
 
   // Create output file for histograms; see notes in header 
@@ -331,20 +387,20 @@ int main(int argc, char** argv)
   
   for(int entry=0; entry < nevents; entry++)
     {
-      // load event into memory
-      es.readEvent(entry);
+      // read an event into event buffer
+      ev.read(entry);
 
       // Uncomment the following line if you wish to copy variables into
-      // structs. See the header file eventStream.h to find out what structs
+      // structs. See the file eventBuffer.h to find out what structs
       // are available. Alternatively, you can call individual fill functions,
-      // such as, es.fillElectrons().
-      //es.fillObjects();
+      // such as, ev.fillElectrons().
+      //ev.fillObjects();
 
       // analysis
 
     }
     
-  es.close();
+  ev.close();
   of.close();
   return 0;
 }
@@ -375,13 +431,18 @@ def main():
     # Get names of ntuple files to be processed
     filenames = fileNames(cl.filelist)
 
-    # Open a chain of ntuples
-    es = eventStream(filenames, "Events")
+    # Create tree reader
+    stream = itreestream(filenames, "Events")
+    if not stream.good():
+        error("can't read input files")
 
-    # Get number of events
-    nevents = es.size()
+    # Create a buffer to receive events from the stream
+    ev = eventBuffer(stream)
+
+    nevents = ev.size()
     print "number of events:", nevents
 
+    # Create file to store histograms
     of = outputFile(cl.outputfilename)
 
     # -------------------------------------------------------------------------
@@ -394,17 +455,17 @@ def main():
     # -------------------------------------------------------------------------
     
     for entry in xrange(nevents):
-        es.readEvent(entry)
+        ev.read(entry)
 
         # Uncomment the following line if you wish to copy variables into
-        # structs. See the header file eventStream.h to find out what structs
+        # structs. See the header eventBuffer.h to find out what structs
         # are available. Alternatively, you can call individual fill functions,
-        # such as, es.fillElectrons().
-        #es.fillObjects();
+        # such as, ev.fillElectrons().
+        #ev.fillObjects();
 
         # analysis
         
-    es.close()
+    ev.close()
     of.close()
 # -----------------------------------------------------------------------------
 try:
@@ -495,7 +556,7 @@ CPPFLAGS:= -I. -I$(incdir) -I$(srcdir) $(shell root-config --cflags)
 #	-pipe	communicate via different stages of compilation
 #			using pipes rather than temporary files
 
-CXXFLAGS:= -c -g -O2 -ansi -Wall -pipe -fPIC
+CXXFLAGS:= -c -g -O2 -ansi -Wall -pipe -fPIC -Wno-ignored-qualifiers
 
 #	C++ Linker
 #   set default path to shared library
@@ -804,8 +865,20 @@ def main():
     declarevec= []
     declare   = []
     init      = []
-    select    = []
+    setb      = []
+    addb      = []
     impl      = []
+
+    # first create counters
+    counters = {}
+    for index, varname in enumerate(keys):
+        rtype, branchname, count, iscounter = varmap[varname]
+        if iscounter:
+            objname = varname[1:] # n<object-name>
+            counters[objname] = branchname
+            addb.append('  output->add("%s", %s);' % (branchname, varname))
+    addb.append('')
+
     for index, varname in enumerate(keys):
         rtype, branchname, count, iscounter = varmap[varname]
 
@@ -845,25 +918,32 @@ def main():
                 impl.append('')
 
 
+
+        setb.append('  input->select("%s",' % branchname)
+        setb.append('                %s);'  % varname)
+
         if count == 1:
             declare.append("  %s\t%s;" % (rtype, varname))
-            ## if rtype in ["float", "double"]:
-            ##     pydeclare.append("%s\t= Double()" % varname)
-            ## else:
-            ##     pydeclare.append("%s\t= Long()" % varname)
         else:
             # this is a vector
             declarevec.append("  std::vector<%s>\t%s;" % (rtype, varname))
 
-            init.append("      %s\t= std::vector<%s>(%d,0);" % \
-                        (varname, rtype, count))                           
-            ## pydeclare.append('%s\t= vector("%s")(%d)' % \
-            ##                  (varname, rtype, count))
-        select.append('    select("%s", %s);' % (branchname, varname))
-        #pyselect.append('stream.select("%s", %s)'  % (branchname, varname))
+            init.append("    %s\t= std::vector<%s>(%d,0);" % \
+                        (varname, rtype, count))
+            
+            objname = split(varname, '_')[0]
+            if not counters.has_key(objname):
+                print "** mkanalyzer.py - object name %s not found" % objname
+                sys.exit(0)
+            branchname += "[%s]" % counters[objname]
+        if not iscounter:
+            addb.append('  output->add("%s",' % branchname)
+            addb.append('              %s);'  % varname)
+
 
     # Create structs for vector variables
 
+    pragma = []
     keys = vectormap.keys()
     keys.sort()
     structvec  = []	
@@ -931,10 +1011,16 @@ def main():
             selectimpl.append('            %s[i]\t= %s[j];' % (varname,
                                                              varname))
 
-        structvec.append('  std::vector<%s_s> %s;' % (objname, objname))
-        init.append('      %s\t= std::vector<%s_s>(%d);' % (objname,
-                                                            objname,
-                                                            count))        
+        structvec.append('  std::vector<eventBuffer::%s_s> %s;' % \
+                             (objname, objname))
+        init.append('    %s\t= std::vector<eventBuffer::%s_s>(%d);' % (objname,
+                                                                       objname,
+                                                                       count))
+        pragma.append('#pragma link C++ class eventBuffer::%s_s;' % objname)
+        pragma.append('#pragma link C++ class vector<eventBuffer::%s_s>;' % \
+                          objname)
+        pragma.append('')
+
         structdecl.append('')		
         structdecl.append('    std::ostream& operator<<(std::ostream& os)')
         structdecl.append('    {')
@@ -1033,7 +1119,8 @@ def main():
              'author': AUTHOR,
              'vardecl':    join("", declarevec, "\n"),
              'init':       join("", init, "\n"),
-             'selection':  join("  ", select, "\n"),
+             'setb':       join("  ", setb, "\n"),
+             'addb':       join("  ", addb, "\n"),
              'structdecl': join("", structdecl, "\n"),
              'structimpl': join("", structimpl, "\n"),
              'structimplall': join("", structimplall, "\n"),
@@ -1043,7 +1130,7 @@ def main():
              'percent': '%' }
 
     record = TEMPLATE_H % names
-    outfilename = "%s/include/eventStream.h" % filename
+    outfilename = "%s/include/eventBuffer.h" % filename
     open(outfilename,"w").write(record)
 
     # Create cc file if one does not yet exist
@@ -1059,7 +1146,7 @@ def main():
 
     # write out linkdef
     outfilename = "%s/include/linkdef.h" % filename
-    names['pragma'] = ''        
+    names['pragma'] = join("", pragma, "\n")       
     record = LINKDEF % names
     open(outfilename,"w").write(record)
     

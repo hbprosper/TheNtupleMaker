@@ -15,6 +15,7 @@
 //                   Thu Jul 04 2013 HBP - add objectname to argument of init
 //                                   by default objectname = name of block
 //                                   in config file
+//                   Wed Dec 17 2014 HBP - simplify
 //
 // $Id: BufferUtil.h,v 1.10 2013/07/05 07:15:14 prosper Exp $
 // ----------------------------------------------------------------------------
@@ -31,7 +32,9 @@
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/Run.h"
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
+#include "FWCore/ParameterSet/interface/ParameterSet.h"
 
+#include "PhysicsTools/TheNtupleMaker/interface/Configuration.h"
 #include "PhysicsTools/TheNtupleMaker/interface/treestream.h"
 #include "PhysicsTools/TheNtupleMaker/interface/colors.h"
 #include "PhysicsTools/TheNtupleMaker/interface/Method.h"
@@ -42,6 +45,23 @@ namespace edm
   class EventSetup;
   class Run;
 }
+
+///
+enum BufferType
+  {
+    EVENT,            // Buffer for event
+    RUNINFO,          // Buffer for RunInfo object
+    HELPER,           // Buffer that performs complicated accesses
+    DEFAULT
+  };
+
+///
+enum ClassType
+  {
+    SINGLETON,        // At most one object per event
+    COLLECTION,       // vector or SortedCollection
+    CONTAINER         // Misc. containers (with size() and operator[](int)
+  };
 
 struct VariableDescriptor
 {
@@ -61,7 +81,7 @@ struct VariableDescriptor
 
   std::string rtype;    // return type of method
   std::string method;   // method
-  std::string name;     // stripped class name
+  std::string name;     // branch name
   std::string varname;  // name derived from method
   int maxcount;
 };
@@ -72,6 +92,31 @@ struct countvalue
   double* value;
 };
 
+void init0(std::string& classname, bool& skipme);
+
+void init1(std::string& classname,
+	   std::string& label,
+	   std::string& label1,
+	   std::string& label2,
+	   bool& crash,
+	   BufferType& btype);
+
+void initCache(std::string& counter,
+	       std::vector<std::string>& fullname,
+	       std::vector<double*>& value,
+	       int& count,
+	       std::vector<std::string>& varnames,
+	       std::map<std::string, countvalue>& varmap);
+
+void createBranchnames(std::string& objectname,  
+		       std::string& prefix,
+		       std::string& counter,
+		       std::vector<VariableDescriptor>& var,
+		       int   maxcount,
+		       std::ofstream& vout,
+		       std::set<std::string>& branchset,
+		       int   debug);
+
 /// Abstract base class for Buffer objects.
 struct BufferThing
 {
@@ -79,23 +124,23 @@ struct BufferThing
       
   /// Initialize the buffer. 
   virtual void init(otreestream& out,
-                    std::string objectname, 
+		    std::string objname,
                     std::string label, 
-                    std::string prefix,
+                    std::string counter,
                     std::vector<VariableDescriptor>& var,
                     int  maxcount,
-                    std::ofstream& log,
-                    std::set<std::string>& branchset,
                     int debug=0)=0;
   
   /// Call requested methods of selected objects and fill buffer.
   virtual bool fill(const edm::Event& event, const edm::EventSetup& esetup)=0;
   ///
-  virtual std::string& message()=0;
+  virtual std::string message()=0;
   ///
   virtual std::string name()=0;
   ///
-  virtual void shrink(std::vector<int>& index)=0;
+  virtual std::string objectname()=0;
+  ///
+  //virtual void shrink(std::vector<int>& index)=0;
   ///
   virtual countvalue& variable(std::string name)=0;
   ///
@@ -104,45 +149,9 @@ struct BufferThing
   virtual int maxcount()=0;
   ///
   virtual int count()=0;
-  ///
-  virtual std::string key()=0;
-
 };
 
-///
-enum BufferType
-  {
-    EVENT,            // Buffer for event
-    RUNINFO,          // Buffer for RunInfo object
-    HELPER,           // Buffer that performs complicated accesses
-    DEFAULT
-  };
 
-///
-enum ClassType
-  {
-    SINGLETON,        // At most one object per event
-    COLLECTION,       // vector or SortedCollection
-    CONTAINER         // Misc. containers (with size() and operator[](int)
-  };
-
-
-///
-void initializeBuffer(otreestream& out,
-                      std::string& objectname,  
-                      std::string& classname,
-                      std::string& label,
-                      std::string& label1,
-                      std::string& label2,
-                      std::string& prefix,
-                      std::vector<VariableDescriptor>& var,
-                      int&  count,
-                      ClassType ctype,
-                      int   maxcount,
-                      std::ofstream& log,
-                      std::string& bufferkey,
-                      std::set<std::string>& branchset,
-                      int   debug);
 // ----------------------------------------------------------------------------
 // We need a few templates to make the code generic. 
 // WARNING: keep code as short as possible to minimize code bloat due to 
@@ -177,40 +186,15 @@ struct Variable
 // ----------------------------------------------------------------------------
 template <typename X>
 void initBuffer(otreestream& out,
-                std::string& objectname,
-                std::string& classname,
-                std::string& label,
-                std::string& label1,
-                std::string& label2,
-                std::string& prefix,
+		std::string counter,
                 std::vector<VariableDescriptor>& var,
                 boost::ptr_vector<Variable<X> >&  variables,
                 std::vector<std::string>&   varnames,
                 std::map<std::string, countvalue>& varmap,
                 int&  count,
-                ClassType ctype,
                 int   maxcount,
-                std::ofstream& log,
-                std::string&   bufferkey,
-                std::set<std::string>& branchset,
                 int   debug)
 {
-  initializeBuffer(out,
-                   objectname,
-                   classname,
-                   label,
-                   label1,
-                   label2,
-                   prefix,
-                   var,
-                   count,
-                   ctype,
-                   maxcount,
-                   log,
-                   bufferkey,
-                   branchset,
-                   debug);
-
   // Create a variable object for each method. We use a boost::ptr_vector
   // rather than a vector because a push_back on the latter can trigger
   // calls to the destructor of the pushed object. We don't want this to
@@ -224,51 +208,29 @@ void initBuffer(otreestream& out,
     variables.push_back(new Variable<X>(var[i].name, 
                                         var[i].maxcount,
                                         var[i].method));
+  // First add leaf counter.
+  if ( counter != "" )
+    out.add(counter, count);
   
   // Now add variables to output tree. This must be done after all
   // variables have been defined, because it is only then that their
   // addresses are guaranteed to be stable. (See above comment.)
 
-  // Also cache variable names and addresses
-
   // We can use vectors for the following because an inadvertent call
   // to a destructor is innocuous.
-
-  boost::regex getname("[^[]+");
-  varnames.clear();
-  varmap.clear();
+  int size = variables.size();
+  std::vector<std::string> fullnames(size);
+  std::vector<double*> values(size);
   for(unsigned i=0; i < variables.size(); i++)
     {
-      std::string fullname = variables[i].name;
-      out.add(fullname, variables[i].value);
+      out.add(variables[i].name, variables[i].value);
 
-      boost::smatch m;
-      boost::regex_search(fullname, m, getname);
-      std::string name = m[0];
-      varnames.push_back(name);
+      fullnames[i] = variables[i].name;
+      values[i]  = &(variables[i].value[0]);
+    }      
 
-      countvalue v;
-      v.count = &count;
-      v.value = &(variables[i].value[0]);
-      varmap[name] = v;
-    }
-
-  // Add counter variable
-  {
-    countvalue v;
-    v.count = &count;
-    v.value = 0;
-    std::string counter = "n" + prefix; 
-    varnames.push_back(counter);
-    varmap[counter] = v;
-  }
-
-  {
-    countvalue v; 
-    v.count = 0;
-    v.value = 0;
-    varmap["NONE"] = v;
-  }
+  // cache variable names and addresses
+  initCache(counter, fullnames, values, count, varnames, varmap);
 }
 
 /// Function to handle getByLabel.

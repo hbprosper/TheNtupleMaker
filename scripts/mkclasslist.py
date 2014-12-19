@@ -35,6 +35,9 @@ getfields = re.compile(r'(?<=")[^ ]*?(?=")')
 isvector  = re.compile(r'(?<=^std::vector\<).*(?=\>)')
 isvoid    = re.compile(r'\(void\)')
 isint     = re.compile(r'\((unsigned )?(long |short )?int\)')
+skip = re.compile('edm::helpers|edm::refhelper|TemplatedSecondary')
+def skipme(rec):
+	return len(skip.findall(rec))>0 
 #------------------------------------------------------------------------------
 def getClass(rec):
 	if find(rec, '<class name') < 0: return None
@@ -81,6 +84,9 @@ std::vector<edm::Ptr
 std::pair
 std::map
 std::set
+edm::helpers
+edm::refhelper
+TemplatedSecondary
 '''
 exlist = joinfields(split(strip(exlist),'\n'),'|')
 # read classes to exclude
@@ -99,6 +105,18 @@ inclusionlist = []
 inlistfile = "plugins/inclusionlist.txt"
 if os.path.exists(inlistfile):
 	inclusionlist = map(strip, split(strip(open(inlistfile).read()), '\n'))
+
+# more stuff to skip
+skip = re.compile('edm::helpers|'\
+			  'edm::refhelper|'\
+			  'edm::DetSet|'\
+			  'IPTagInfo|'\
+			  'std::pair|'\
+			  'Point.D|'\
+			  'PattRecoTree|'\
+			  'TemplatedSecondary')
+def skipmore(rec):
+	return len(skip.findall(rec))>0 
 #------------------------------------------------------------------------------
 argv = sys.argv[1:]
 argc = len(argv)
@@ -132,9 +150,9 @@ for record in records:
 			if not wclassesmap.has_key(classname):
 				wclassesmap[classname] = 1
 				count += 1
-				print "\t%5d ==> %s" % (count, classname)
+				#print "\t%5d ==> %s" % (count, classname)
 wclasses = wclassesmap.keys()
-print
+#print
 
 # ---------------------------------------
 # Add classes listed in inclusionlist.txt
@@ -147,7 +165,7 @@ wclasses.sort()
 # Get list of classes
 #from PhysicsTools.TheNtupleMaker.AutoLoader import *
 
-print "\t==> writing plugins/classlist.txt ..."
+print "list of classes known to TNM:"
 tname = {}
 for classname in wclasses:
 
@@ -161,13 +179,16 @@ for classname in wclasses:
 
 	if skipme.match(fullname) != None:
 		continue
+	if skipmore(fullname): 
+		continue
 
 	# Keep classes for which a header can be identified
 	headers = findHeaders(fullname)
 	if len(headers) == 0:
 		#print "** could not identify header for class (%s)" % fullname
-		continue
-	
+		continue	
+	pkg = split(split(headers[0], "/interface")[0], '/src/')[-1]
+
 	# Make sure that containers supersede singletons in the
 	# following sense:
 	# vector<A> is kept but not A if both are present
@@ -177,10 +198,9 @@ for classname in wclasses:
 	if not yes:
 		yes, name = isVector(fullname)
 	if yes:
-		# add to map
 		ctype = 'collection'
 		name = fixName(name)
-		tname[name] = (ctype, name)
+		tname[name] = (pkg, name, ctype)
 
 	# If this is not a collection modeled as a
 	# STL vector, skip it
@@ -188,23 +208,24 @@ for classname in wclasses:
 		continue
 	
 	else:
-		# This is not a  vector type. Keep it only if
-		# "name" is not present in the map.
+		# This is not a  vector type. keep it only
+		# if "name" not yet in map
 		name = classname
 		if not tname.has_key(name):
-			# add to map
 			ctype = 'singleton'
-			name = fixName(name)
-			tname[name] = (ctype, name)
+			name  = fixName(name)
+			tname[name] = (pkg, name, ctype)
 
 # write out classes
 values = tname.values()
 values.sort()
-
+cmap = {}
 records = []
-for index, (ctype, classname) in enumerate(values):
-	print "%4d %s\t%s" % (index+1, ctype, classname)
-	records.append("%s\t%s\n" % (ctype, classname))
-print "\t==> number of classes: %d" % len(records) 
+for index, (pkg, classname, ctype) in enumerate(values):
+	key =  '%s%s' % (pkg, classname)
+	if cmap.has_key(key): continue
+	cmap[key] = 1
+	print "%4d %s\t%s\t%s" % (index+1, pkg, classname, ctype)
+	records.append("%s\t%s\t%s\n" % (pkg, classname, ctype))
 open("plugins/classlist.txt",'w').writelines(records)
 

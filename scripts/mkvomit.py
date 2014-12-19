@@ -171,13 +171,13 @@ def main():
 	print "mkvomit.py\n"
 
 	# read classlist.txt
-	filename='%sPhysicsTools/TheNtupleMaker/plugins/classlist.txt' % LOCALBASE
+	filename='%sPhysicsTools/TheNtupleMaker/plugins/classlist.txt' % \
+	    LOCALBASE
 	classlist = map(strip, open(filename).readlines())
 
 	clist = []
 	for name in classlist:
-		t = split(name)
-		name = joinfields(t[1:], ' ')
+		pkg, name, ctype = split(name)
 		headers = findHeaders(name)
 		if len(headers) == 0: continue
 		
@@ -214,7 +214,8 @@ def main():
 		
 		# Get methods and/or datamembers and write them out
 
-		# Initialize map to contain info about classes, methods & datamembers
+		# Initialize map to contain info about classes, 
+		# methods & datamembers
 		
 		k = rfind(header, "/src/") # search from right
 		if k > 0: header = header[k+5:]

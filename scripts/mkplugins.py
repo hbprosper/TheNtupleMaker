@@ -35,7 +35,7 @@ if PACKAGE == None:
 
 LOCALBASE = "%s/src" % os.environ['CMSSW_BASE']
 
-NPLUGINS  = 10 # number of plugins/file 
+NPLUGINS  = 25 # number of plugins/file 
 #------------------------------------------------------------------------------
 getlibs = re.compile(r'(?<=name=").*?(?=")')
 PLUGINS_BUILDFILE ='''<use   name="FWCore/FWLite"/>
@@ -96,17 +96,17 @@ BUILDFILE = '''<use   name="FWCore/Framework"/>
 deflibs = getlibs.findall(BUILDFILE)
 #------------------------------------------------------------------------------
 isfun     = re.compile(r'[0-9]+|bool|short|int|long|float|double'\
-					   '|unsigned short|unsigned int|unsigned long')
+			       '|unsigned short|unsigned int|unsigned long')
 isSTL     = re.compile(r'std::(vector|set|map|pair)')
 
 # IMPORTANT: Need to match start of line "^"
-isvector  = re.compile(r'(?<=^std::vector\<).*(?=\>)')
-iscollection  = re.compile(r'(?<=^edm::SortedCollection\<).*(?=\>)')
+isvector    = re.compile(r'(?<=^std::vector\<).*(?=\>)')
+iscollection= re.compile(r'(?<=^edm::SortedCollection\<).*(?=\>)')
 hasnspace = re.compile(r'::')
 stripme   = re.compile(r'::|<|>|,| ')
 simplify  = re.compile(r',edm::(FindValue|StrictWeakOrdering)\<.+?\> *')
 findplugins=re.compile(r'<library file=plugins.cc'\
-					   '[^<]+?<flags [^<]+?</library>\s',re.M)
+			       '[^<]+?<flags [^<]+?</library>\s',re.M)
 
 # To extract template parameters
 
@@ -119,9 +119,10 @@ isTemplate   = re.compile(r'(?P<tclass>\w+(::)?\w+)<.*>')
 #------------------------------------------------------------------------------
 def exclass(x):
 	t = split(x)
-	ctype = upper(t[0])
-	cname = joinfields(t[1:],' ')
-	return (ctype, cname)
+	pkg   = t[0]
+	ctype = upper(t[-1])
+	cname = joinfields(t[1:-1],' ')
+	return (pkg, cname, ctype)
 #------------------------------------------------------------------------------
 # Check if classlist.txt exists
 #------------------------------------------------------------------------------
@@ -132,49 +133,50 @@ if not os.path.exists("plugins/classlist.txt"):
 	sys.exit(0)
 #------------------------------------------------------------------------------
 cnames = map(exclass,
-			 map(strip,
-				 open("plugins/classlist.txt").readlines()))
-names  = {'time': ctime()}
+	     map(strip,
+		 open("plugins/classlist.txt").readlines()))
 
-# Split across several plugin files
-npmax = NPLUGINS
-np = 0
-nplugin = 0 # plugin file number
-
-outrecs = []
-hdrs  = {}
-pkgs  = {}
-count = 0
-for index, (ctype, name) in enumerate(cnames):
+nmap = {}
+for index, (pkg, name, ctype) in enumerate(cnames):
 	headers = findHeaders(name)
 	if len(headers) == 0:
 		print "** could not identify header for class (%s)" % name
 		continue
-	
-	for header in headers:
-		# note package and header
-		pkg = split(split(header, "/interface")[0], '/src/')[-1]
-		pkgs[pkg] = 1
-		hdrs[header] = 1
-		#print "\t%s" % header
+	if not nmap.has_key(pkg): nmap[pkg] = []
+	nmap[pkg].append((name, headers, ctype))
+	#print name, headers
+pkgs = nmap.keys()
+pkgs.sort()
+#sys.exit()
+#------------------------------------------------------------------------------
+names  = {'time': ctime()}
+npmax  = NPLUGINS
+nplugin= 0 # plugin file number
+np     = 0
+outrecs= []
+count  = 0
+for index, pkg in enumerate(pkgs):
+	recs = nmap[pkg]
+	np = 0
+	outrecs = []
+	hdrmap  = {}
+	for iii, (name, headers, ctype) in enumerate(recs):
+		bname = simplify.sub("", name)
+		bname = strip(stripme.sub("", bname))
 
-	bname = simplify.sub("", name)
-	bname = strip(stripme.sub("", bname))
+		names['buffername'] = bname
+		names['classname']  = name
+		names['ctype']      = ctype
+		names['shortname']  = bname
 
-	names['buffername'] = bname
-	names['classname']  = name
-	names['ctype']      = ctype
-	names['shortname']  = bname
-	shortname = bname
-
-	np += 1
-	if np == 1:
-		nplugin += 1
-		pluginname = "plugins%3.3d" % nplugin
-		print "\n=> plugin file plugins/%s.cc" % pluginname 
-		out  = open("plugins/%s.cc" % pluginname, "w")
-		names['pluginname'] = pluginname
-		record = \
+		np += 1
+		if np == 1:
+			nplugin += 1
+			pluginname = "plugins%3.3d" % nplugin
+			print "\n=> plugin file plugins/%s.cc" % pluginname 
+			out  = open("plugins/%s.cc" % pluginname, "w")
+			names['pluginname'] = pluginname
+			record = \
 '''// -------------------------------------------------------------------------
 // File::   %(pluginname)s.cc
 // Created: %(time)s by mkplugins.py
@@ -183,59 +185,48 @@ for index, (ctype, name) in enumerate(cnames):
 #include "PhysicsTools/TheNtupleMaker/interface/pluginfactory.h"
 // -------------------------------------------------------------------------
 '''
-		out.write(record % names)
+			out.write(record % names)
 		
-	# ===> special processing for Event class
+		# ===> special processing for Event class
 	
-	if bname == "edmEvent":
-		record = \
+		if bname == "edmEvent":
+			record = \
 '''
 #include "PhysicsTools/TheNtupleMaker/interface/BufferEvent.h"
 '''
-		out.write(record)
+			out.write(record)
 	
-	count += 1
-	print "%5d\t%5d\t%s" % (count, np, name)
-
-	# If there are no headers, don't write out this class
-	if len(headers) == 0:
-		#print "*** no header found for %s" % name
-		continue
+		count += 1
+		print "%5d\t%5d\t%s" % (count, np, name)
 	
-	# add buffer specific header
+		# add buffer specific header
 
-	record = '''
+		record = '''
 typedef Buffer<%(classname)s,%(ctype)s> %(buffername)s_t;
 DEFINE_EDM_PLUGIN(BufferFactory,%(buffername)s_t,"%(buffername)s");
 				  ''' % names
-	#out.write(record)
-	outrecs.append(record)
-	
-	if np >= npmax or index == len(cnames)-1 :
-		np = 0
-		headers = hdrs.keys()
-		headers.sort()
-		header = ""
-		for h in headers:
-			header += '\n#include "%s"' % h
-		out.write(header)
-		record = \
-'''
-// -------------------------------------------------------------------------
-'''
-		out.write(record)			
-		out.writelines(outrecs)
-		out.close()
-		hdrs = {} # remember to reset
-		outrecs = []
+		outrecs.append(record)
+		for header in headers:
+			hdrmap['#include "%s"\n' % header] = 1
+		if find(name, 'Track') > 0:
+			hdrmap['#include "DataFormats/TrackReco/interface/Track.h"\n'] = 1
+		if np >= npmax or iii >= len(recs)-1 :
+			hdrs = hdrmap.keys()
+			hdrs.sort()
+			out.writelines(hdrs)
+			record = \
+	'''// -------------------------------------------------------------------------
+	'''
+			out.write(record)			
+			out.writelines(outrecs)
+			out.close()
+			np = 0
+			headers = {}
+			outrecs = []
 
 # Update plugins buildfile
 
 print "\n\t==> Updating BuildFiles"
-
-pkgs = pkgs.keys()
-pkgs.sort()
-
 record = ''
 for pkg in pkgs:
 	if not pkg in plugins_deflibs:

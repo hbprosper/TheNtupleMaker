@@ -19,6 +19,7 @@
 //                                   in config file
 //                   Thu Sep 05 2013 HBP - remove arguments from cacheEvent
 //                                   and use singleton CurrentEvent instead
+//                   Wed Dec 17 2014 HBP - simplify
 //
 // $Id: UserBuffer.h,v 1.13 2013/07/05 07:15:14 prosper Exp $
 //
@@ -62,12 +63,12 @@ struct UserBuffer  : public BufferThing
   ///
   UserBuffer() 
     : out_(0),
-      objectname_(""),
       classname_(boost::python::type_id<X>().name()),
+    objectname_(""),
       label_(""),
       label1_(""),
       label2_(""),
-      prefix_(""),
+      counter_(""),
       buffertype_(HELPER),
       var_(std::vector<VariableDescriptor>()),
       maxcount_(0),
@@ -89,22 +90,18 @@ struct UserBuffer  : public BufferThing
 
   /** Initialize buffer.
       @param out - output ntuple file.
-      @param objectname - C++ name assigned to object (same as block name)
       @param label - getByLabel
-      @param prefix - prefix for variable names (and internal name of buffer)
+      @param counter - counter variable name 
       @param var - variable descriptors
       @param maxcount - maximum count for this buffer
-      @param log - log file
    */
   virtual void
   init(otreestream& out,
-       std::string  objectname, 
+       std::string  objname,
        std::string  label, 
-       std::string  prefix,
+       std::string  counter,
        std::vector<VariableDescriptor>& var,
        int  maxcount,
-       std::ofstream& log,
-       std::set<std::string>& branchset,
        int debug=0)
   {
     std::cout << "\t=== Initialize UserBuffer (" 
@@ -112,13 +109,22 @@ struct UserBuffer  : public BufferThing
               << std::endl;
 
     out_    = &out;
-    objectname_  = objectname;
+    objectname_ = objname;
     label_  = label;
-    prefix_ = prefix;
+    counter_= counter;
     var_    = var;
     maxcount_ = maxcount;
-    debug_  = debug;
-     
+    debug_  = debug; 
+
+  // Split Label into its component parts
+  label1_ = label;
+  int i = label.find("_");
+  if ( i > 0 )
+    {
+      label1_ = label.substr(0,i);      
+      label2_ = label.substr(i+1, label.size()-i-1);
+      label_  = label1_ + ", " + label2_;
+    }
     // We need to skip these classes, if we are running over real data
     boost::regex getname("GenEvent|GenParticle|"
                          "GenJet|GenRun|genPart|generator|"
@@ -152,23 +158,33 @@ struct UserBuffer  : public BufferThing
                 << std::endl;    
 
     std::string classname = boost::python::type_id<Y>().name();
+
+    if ( debug > 0 )
+      {
+	switch (ctype_)
+	  {
+	  case SINGLETON:
+	    std::cout << RED  << "SINGLETON BUFFER FOR( " << classname << " )" 
+		      << DEFAULT_COLOR << std::endl;
+	    break;
+	  case COLLECTION:
+	    std::cout << RED  << "COLLECTION BUFFER FOR( " << classname 
+		      << " )" 
+		      << DEFAULT_COLOR << std::endl;
+	    break;
+	  case CONTAINER:
+	    std::cout << RED  << "CONTAINER BUFFER FOR( " << classname << " )" 
+		      << DEFAULT_COLOR << std::endl;
+	  }
+      }
     initBuffer<Y>(out,
-                  objectname,
-                  classname,
-                  label_,
-                  label1_,
-                  label2_,
-                  prefix_,
+                  counter_,
                   var_,
                   variables_,
                   varnames_,
                   varmap_,
                   count_,
-                  ctype_,
                   maxcount_,
-                  log,
-                  bufferkey_,
-                  branchset,
                   debug_);
   }
   
@@ -279,51 +295,45 @@ struct UserBuffer  : public BufferThing
     return true;
   }
   
-  std::string& message() { return message_; }
-
+  std::string message() { return message_; }
+  std::string objectname() { return objectname_; }
   std::string name() { return classname_; }
 
-  /// Shrink buffer size using specified array of indices.
-  void shrink(std::vector<int>& index)
-  {
-    count_ = index.size();
-    if ( count_ > (int)cache_.size() ) cache_.resize(count_);
+  /* /// Shrink buffer size using specified array of indices. */
+  /* void shrink(std::vector<int>& index) */
+  /* { */
+  /*   count_ = index.size(); */
+  /*   if ( count_ > (int)cache_.size() ) cache_.resize(count_); */
 
-    for(unsigned i=0; i < variables_.size(); ++i)
-      {
-        for(int j=0; j < count_; ++j)
-          cache_[j] = variables_[i].value[index[j]];
+  /*   for(unsigned i=0; i < variables_.size(); ++i) */
+  /*     { */
+  /*       for(int j=0; j < count_; ++j) */
+  /*         cache_[j] = variables_[i].value[index[j]]; */
         
-        for(int j=0; j < count_; ++j)
-          variables_[i].value[j] = cache_[j];
-      }
-  }
+  /*       for(int j=0; j < count_; ++j) */
+  /*         variables_[i].value[j] = cache_[j]; */
+  /*     } */
+  /* } */
 
   countvalue& variable(std::string name)
   {
-    if ( varmap_.find(name) != varmap_.end() ) 
+    if ( varmap_.find(name) != varmap_.end() )
       return varmap_[name];
     else
       return varmap_["NONE"];
   }
-
-  std::vector<std::string>& varnames()
-  {
-    return varnames_;
-  }
-
+  std::vector<std::string>& varnames() { return varnames_; }
   int count() { return count_; }
   int maxcount() { return maxcount_; }
-  std::string key() { return bufferkey_; }
 
 private:
   otreestream* out_;
-  std::string  objectname_;
-  std::string  classname_;  
+  std::string  classname_;
+  std::string  objectname_;  
   std::string  label_;
   std::string  label1_;
   std::string  label2_;
-  std::string  prefix_;
+  std::string  counter_;
   BufferType buffertype_;
   std::vector<VariableDescriptor> var_;
   boost::ptr_vector<Variable<Y> > variables_;
@@ -336,7 +346,6 @@ private:
   int  debug_;
   bool skipme_; 
   bool crash_;
-  std::string bufferkey_;
   std::vector<double> cache_;
 
   // helper object
@@ -352,12 +361,11 @@ struct UserBuffer<edm::Event, Y, SINGLETON> : public BufferThing
   ///
   UserBuffer() 
     : out_(0),
-      objectname_(""),
       classname_(boost::python::type_id<Y>().name()),
+      objectname_(""),
       label_(""),
       label1_(""),
       label2_(""),
-      prefix_(""),
       buffertype_(EVENT),
       var_(std::vector<VariableDescriptor>()),
       maxcount_(1),
@@ -385,19 +393,17 @@ struct UserBuffer<edm::Event, Y, SINGLETON> : public BufferThing
    */
   virtual void
   init(otreestream& out,
-       std::string  objectname, 
+       std::string  objname, 
        std::string  label, 
-       std::string  prefix,
+       std::string  counter,
        std::vector<VariableDescriptor>& var,
        int  maxcount,
-       std::ofstream& log,
-       std::set<std::string>& branchset,
        int debug=0)
   {
     out_    = &out;
-    objectname_  = objectname;
+    objectname_  = objname;
     label_  = label;
-    prefix_ = prefix;
+    counter_= counter;
     var_    = var;
     maxcount_ = 1;
     debug_  = debug;
@@ -409,22 +415,13 @@ struct UserBuffer<edm::Event, Y, SINGLETON> : public BufferThing
 
 
     initBuffer<Y>(out,
-                  objectname_,
-                  classname_,
-                  label_,
-                  label1_,
-                  label2_,
-                  prefix_,
+		  counter_,
                   var_,
                   variables_,
                   varnames_,
                   varmap_,
                   count_,
-                  ctype_,
                   maxcount_,
-                  log,
-                  bufferkey_,
-                  branchset,
                   debug_);
   }
   
@@ -477,12 +474,12 @@ struct UserBuffer<edm::Event, Y, SINGLETON> : public BufferThing
     return true;
   }
   
-  std::string& message() { return message_; }
-
+  std::string objectname() { return objectname_; }
+  std::string message() { return message_; }
   std::string name() { return classname_; }
 
   /// Shrink buffer size using specified array of indices.
-  void shrink(std::vector<int>& index) {}
+  //void shrink(std::vector<int>& index) {}
 
   countvalue& variable(std::string name)
   {
@@ -492,23 +489,18 @@ struct UserBuffer<edm::Event, Y, SINGLETON> : public BufferThing
       return varmap_["NONE"];
   }
 
-  std::vector<std::string>& varnames()
-  {
-    return varnames_;
-  }
-
+  std::vector<std::string>& varnames() { return varnames_; }
   int count() { return count_; }
   int maxcount() { return maxcount_; }
-  std::string key() { return bufferkey_; }
 
 private:
   otreestream* out_;
-  std::string  objectname_;  
-  std::string  classname_;  
+  std::string  classname_;
+  std::string  objectname_;    
   std::string  label_;
   std::string  label1_;
   std::string  label2_;
-  std::string  prefix_;
+  std::string  counter_;
   BufferType buffertype_;
   std::vector<VariableDescriptor> var_;
   boost::ptr_vector<Variable<Y> > variables_;
@@ -519,7 +511,6 @@ private:
   ClassType  ctype_;
   std::string message_;
   int  debug_;
-  std::string bufferkey_;
 
   // helper object
   Y helper_;

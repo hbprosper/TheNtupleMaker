@@ -22,19 +22,17 @@
 #include "TApplication.h"
 
 #ifdef PROJECT_NAME
-#include "PhysicsTools/TheNtupleMaker/interface/treestream.h"
-#include "PhysicsTools/TheNtupleMaker/interface/eventStream.h"
+#include "PhysicsTools/TheNtupleMaker/interface/eventBuffer.h"
 #else
-#include "treestream.h"
-#include "eventStream.h"
+#include "eventBuffer.h"
 #endif
 //-----------------------------------------------------------------------------
 
 struct outputFile
 {
   outputFile(std::string filename);
-  outputFile(std::string filename, itreestream& stream, int savecount=50000); 
-  void writeEvent(double weight=1);
+  outputFile(std::string filename, eventBuffer& ev, int savecount=50000); 
+  void write(double weight=1);
   void count(std::string cond, double w=1);
   void close();
 
@@ -46,7 +44,7 @@ struct outputFile
   double     weight_;
   int    entry_;
   int    SAVECOUNT_;
-  eventStream* estream;
+  eventBuffer* ev_;
 };
 
 struct commandLine

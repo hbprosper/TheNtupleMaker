@@ -86,7 +86,7 @@ outputFile::outputFile(std::string filename)
     b_weight_(0),
     entry_(0),
     SAVECOUNT_(50000),
-    estream(0)
+    ev_(0)
 {
   file_->cd();
   hist_ = new TH1F("counts", "", 1,0,1);
@@ -95,16 +95,21 @@ outputFile::outputFile(std::string filename)
 }
 
 outputFile::outputFile(std::string filename, 
-			itreestream& stream, 
-			int savecount) 
+		       eventBuffer& ev, 
+		       int savecount) 
   : filename_(filename),
     file_(new TFile(filename.c_str(), "recreate")),
-    tree_(stream.tree()->CloneTree(0)),
-    b_weight_(tree_->Branch("eventWeight", &weight_, "eventWeight/D")),
+    tree_(ev.output ? 
+	  ev.output->tree()->CloneTree(0) : 0),
+    b_weight_(tree_ ? 
+	      tree_->Branch("eventWeight", &weight_, "eventWeight/D") : 0),
     entry_(0),
     SAVECOUNT_(savecount),
-    estream(dynamic_cast<eventStream*>(&stream))
+    ev_(&ev)
 {
+  if ( tree_ == 0 )
+    error("outputFile - tree pointer is NULL");
+
   std::cout << "events will be skimmed to file "
 	    << filename_ << std::endl;
   file_->cd();
@@ -114,10 +119,10 @@ outputFile::outputFile(std::string filename,
 }
 
 
-void outputFile::writeEvent(double weight)
+void outputFile::write(double weight)
 {
   if ( tree_ == 0 ) return;
-  if ( estream ) estream->saveObjects();
+  if ( ev_ ) ev_->saveObjects();
 
   weight_ = weight;
   file_   = tree_->GetCurrentFile();
@@ -138,7 +143,7 @@ void outputFile::count(std::string cond, double w)
 void outputFile::close()
 {
   std::cout << "==> histograms saved to file " << filename_ << std::endl;
-  if ( tree_ != 0 )
+  if ( tree_ )
     {
       std::cout << "==> events skimmed to file " << filename_ << std::endl;
       file_ = tree_->GetCurrentFile();

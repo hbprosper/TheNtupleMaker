@@ -32,13 +32,12 @@
 //                   Thu Jul 04 2013 HBP - add objectname to argument of init
 //                                   by default objectname = name of block
 //                                   in config file
+//                   Wed Dec 17 2014 HBP - simplify
 //
 // $Id: Buffer.h,v 1.10 2013/07/05 07:15:14 prosper Exp $
 //
 // ----------------------------------------------------------------------------
 #include "PhysicsTools/TheNtupleMaker/interface/BufferUtil.h"
-#include "PhysicsTools/TheNtupleMaker/interface/Configuration.h"
-#include "FWCore/ParameterSet/interface/ParameterSet.h"
 // ----------------------------------------------------------------------------
 // We need a few templates to make the code generic. 
 // WARNING: keep code as short as possible to minimize code bloat due to 
@@ -70,236 +69,203 @@
     - CTYPE = <i>SINGLETON, COLLECTION, CONTAINER</i> 
 */
 template <typename X, ClassType CTYPE>
-struct Buffer  : public BufferThing
+  struct Buffer  : public BufferThing
 {
   ///
-  Buffer() 
-    : out_(0),
-      objectname_(""),
-      classname_(boost::python::type_id<X>().name()),
-      label_(""),
-      label1_(""),
-      label2_(""),
-      prefix_(""),
-      buffertype_(DEFAULT),
-      var_(std::vector<VariableDescriptor>()),
-      maxcount_(0),
-      count_(0),
-      ctype_(CTYPE),
-      message_(""),
-      debug_(0),
-      skipme_(false),
-      call_(Caller<X, X, CTYPE>()),
-      cache_(std::vector<double>(100))
-  {
-    std::cout << "Buffer created for objects of type: " 
-              << name()
-              << std::endl;
-
-    // We need to skip these classes, if we are running over real data
-    boost::regex getname("GenEvent|GenParticle|"
-                         "GenJet|GenRun|genPart|generator|"
-                         "LHEEventProduct|"
-                         "PileupSummaryInfo");
-    boost::smatch m;
-    skipme_ = boost::regex_search(classname_, m, getname);
-  }
+ Buffer() 
+   : out_(0),
+    classname_(boost::python::type_id<X>().name()),
+    objectname_(""),
+    label_(""),
+    label1_(""),
+    label2_(""),
+    counter_(""),
+    buffertype_(DEFAULT),
+    var_(std::vector<VariableDescriptor>()),
+    maxcount_(0),
+    count_(0),
+    ctype_(CTYPE),
+    message_(""),
+    debug_(0),
+    skipme_(false),
+    call_(Caller<X, X, CTYPE>()),
+    cache_(std::vector<double>(100))
+      {
+    	std::cout << "Buffer created for objects of type: "
+		  << name()
+		  << std::endl;
+	init0(classname_, skipme_);
+      }
 
   ///
   virtual ~Buffer() {}
 
   /** Initialize buffer.
       @param out - output ntuple file.
-      @param objectname - C++ name to be assigned to objects 
-      @param label - getByLabel
-      @param prefix - prefix for variable names (and internal name of buffer)
+      @param objectname - same as name of block in config file
+      @param label - InputTag
+      @param counter - counter variable name 
       @param var - variable descriptors
       @param maxcount - maximum count for this buffer
-      @param log - log file
-   */
+  */
   virtual void
-  init(otreestream& out,
-       std::string  objectname,
-       std::string  label, 
-       std::string  prefix,
-       std::vector<VariableDescriptor>& var,
-       int maxcount,
-       std::ofstream& log,
-       std::set<std::string>& branchset,  
-       int debug=0)
+    init(otreestream& out,
+	 std::string  objname,
+	 std::string  label, 
+	 std::string  counter,
+	 std::vector<VariableDescriptor>& var,
+	 int maxcount,
+	 int debug=0)
   {
     out_    = &out;
-    objectname_ = objectname;
+    objectname_ = objname;
     label_  = label;
-    prefix_ = prefix;
+    counter_= counter;
     var_    = var;
     maxcount_ = maxcount;
     debug_  = debug;
+    init1(classname_, 
+	  label_, label1_, label2_, 
+	  crash_, buffertype_);
 
-    std::cout << "\t=== Initialize Buffer for (" 
-              << classname_ << ")"
-              << std::endl;
-
-    // Get optional crash switch
-
-    try
+#ifdef DEBUGBUFFER
+    if ( debug > 0 )
       {
-        crash_ = 
-          (bool)(Configuration::instance().
-                 getConfig()->
-                 getUntrackedParameter<int>("crashOnInvalidHandle"));
+	switch (ctype_)
+	  {
+	  case SINGLETON:
+	    std::cout << RED  << "SINGLETON BUFFER FOR( "  << classname_ << " )"
+		      << DEFAULT_COLOR << std::endl;
+	    break;
+	  case COLLECTION:
+	    std::cout << RED  << "COLLECTION BUFFER FOR( " << classname_
+		      << " )"
+		      << DEFAULT_COLOR << std::endl;
+	    break;
+	  case CONTAINER:
+	    std::cout << RED  << "CONTAINER BUFFER FOR( "  << classname_ << " )"
+		      << DEFAULT_COLOR << std::endl;
+	  }
       }
-    catch (...)
-      {
-        crash_ = true;
-      }
-
-    if ( crash_ )
-      std::cout << "\t=== CRASH on InvalidHandle (" 
-                << classname_ << ")"
-                << std::endl;
-    else
-      std::cout << "\t=== WARN on InvalidHandle (" 
-                << classname_ << ")"
-                << std::endl;  
-
-    // Is this a RunInfo object?
-    // Data for these classes must be extracted using the getRun() 
-    // method of the event object.
-    // Definition: An extractable object is one that can be extracted from an
-    // event using getByLabel
-
-    boost::regex re("RunInfo");
-    boost::smatch match;
-    if ( boost::regex_search(classname_, match, re) ) buffertype_ = RUNINFO;
-
+#endif
     initBuffer<X>(out,
-                  objectname_,
-                  classname_,
-                  label_,
-                  label1_,
-                  label2_,
-                  prefix_,
-                  var_,
-                  variables_,
-                  varnames_,
-                  varmap_,
-                  count_,
-                  ctype_,
-                  maxcount_,
-                  log,
-                  bufferkey_,
-                  branchset,
-                  debug_);
+    		  counter_,
+		  var_,
+		  variables_,
+		  varnames_,
+		  varmap_,
+		  count_,
+		  maxcount_,
+		  debug_);
   }
   
   /// Fill buffer.
   virtual bool 
-  fill(const edm::Event& event, const edm::EventSetup& eventsetup)
+    fill(const edm::Event& event, const edm::EventSetup& eventsetup)
   {
-    if ( debug_ > 0 ) 
+#ifdef DEBUGBUFFER
+    if ( debug_ > 0 )
       std::cout << DEFAULT_COLOR
-                << "Begin Buffer::fill\n\t" 
-                << BLUE 
+                << "Begin Buffer::fill\n\t"
+                << BLUE
                 << "X: " << boost::python::type_id<X>().name() << "\n\t"
                 << DEFAULT_COLOR
                 << std::endl;
-
+#endif
     count_ = 0; // reset count, just in case we have to bail out
     message_ = "";
 
     // If this is real data ignore generator objects
     if ( event.isRealData() )
       {
-        if ( skipme_ ) return true;      
+        if ( skipme_ ) return true;
       }
     
     // Note: We use the handle edm::Handle<X> for singletons and
     //       containers, but edm::Handle< View<X> > for vector types
 
-    bool status = call_(event, 
-                        label1_, 
-                        label2_, 
+    bool status = call_(event,
+                        label1_,
+                        label2_,
                         message_,
                         buffertype_,
                         crash_,
-                        variables_, 
+                        variables_,
                         count_,
                         maxcount_,
                         debug_);
 
-    if ( debug_ > 0 ) 
-      std::cout << DEFAULT_COLOR << "End Buffer::fill " << std::endl; 
+#ifdef DEBUGBUFFER 
+    if ( debug_ > 0 )
+      std::cout << DEFAULT_COLOR << "End Buffer::fill " << std::endl;
+#endif
     return status;
   }
   
-  std::string& message() { return message_; }
-
+  std::string objectname() { return objectname_; }
+  std::string message() { return message_; }
   std::string name() { return classname_; }
 
-  /// Shrink buffer size using specified array of indices.
-  void shrink(std::vector<int>& index)
-  {
-    // Reset count
-    count_ = index.size();
+  /* /// Shrink buffer size using specified array of indices. */
+  /* void shrink(std::vector<int>& index) */
+  /* { */
+  /*   // Reset count */
+  /*   count_ = index.size(); */
 
-    if ( count_ > (int)cache_.size() ) cache_.resize(count_);
+  /*   if ( count_ > (int)cache_.size() ) cache_.resize(count_); */
 
-    if ( debug_ > 0 )
-      std::cout << " Begin Buffer::shrink for " << bufferkey_ << std::endl;
+  /*   if ( debug_ > 0 ) */
+  /*     std::cout << " Begin Buffer::shrink for " << bufferkey_ << std::endl; */
 
-    for(unsigned i=0; i < variables_.size(); ++i)
-      {
-        for(int j=0; j < count_; ++j) cache_[j]=variables_[i].value[index[j]];
+  /*   for(unsigned i=0; i < variables_.size(); ++i) */
+  /*     { */
+  /*       for(int j=0; j < count_; ++j) cache_[j]=variables_[i].value[index[j]]; */
    
-        for(int j=0; j < count_; ++j)
-          {
-            variables_[i].value[j] = cache_[j];
+  /*       for(int j=0; j < count_; ++j) */
+  /*         { */
+  /*           variables_[i].value[j] = cache_[j]; */
             
-            if ( debug_ > 0 )
-              {
-                std::cout << "\t" 
-                          << BLUE << variables_[i].name << DEFAULT_COLOR 
-                          << ")[" << j << "] = " 
-                          << RED << variables_[i].value[j] << DEFAULT_COLOR 
-                          << std::endl; 
-              }
-          }
-      }
-    if ( debug_ > 0 )
-      std::cout << " End Buffer::shrink() for " << bufferkey_ << std::endl;
-  }
+  /*           if ( debug_ > 0 ) */
+  /*             { */
+  /*               std::cout << "\t"  */
+  /*                         << BLUE << variables_[i].name << DEFAULT_COLOR  */
+  /*                         << ")[" << j << "] = "  */
+  /*                         << RED << variables_[i].value[j] << DEFAULT_COLOR  */
+  /*                         << std::endl;  */
+  /*             } */
+  /*         } */
+  /*     } */
+  /*   if ( debug_ > 0 ) */
+  /*     std::cout << " End Buffer::shrink() for " << bufferkey_ << std::endl; */
+  /* } */
 
   countvalue& variable(std::string name)
-  {
-    if ( varmap_.find(name) != varmap_.end() ) 
-      return varmap_[name];
-    else
-      return varmap_["NONE"];
-  }
+    {
+      if ( varmap_.find(name) != varmap_.end() )
+	return varmap_[name];
+      else
+	return varmap_["NONE"];
+    }
 
-  std::vector<std::string>& varnames()
-  {
-    return varnames_;
-  }
-
+  std::vector<std::string>& varnames() { return varnames_; }
   int count() { return count_; }
   int maxcount() { return maxcount_; }
-  std::string key() {return bufferkey_;}
 
-private:
+ private:
   otreestream* out_;
-  std::string  objectname_;
   std::string  classname_;
+  std::string  objectname_;
   std::string  label_;
   std::string  label1_;
   std::string  label2_;
-  std::string  prefix_;
+  std::string  counter_;
+
   BufferType buffertype_;
   std::vector<VariableDescriptor> var_;
   boost::ptr_vector<Variable<X> > variables_;
   std::vector<std::string> varnames_;
   std::map<std::string, countvalue> varmap_;
+
   int  maxcount_;
   int  count_;
   ClassType ctype_;
@@ -307,7 +273,6 @@ private:
   int  debug_;
   bool skipme_;
   bool crash_;
-  std::string bufferkey_;
 
   Caller<X, X, CTYPE> call_;
 

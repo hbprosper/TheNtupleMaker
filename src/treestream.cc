@@ -1065,7 +1065,7 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
        filepath.push_back(fname[j]);
      }
      //filepath.push_back(fname[0]);
-      std::cout << "filepath size: " << filepath.size() << endl;  
+     //std::cout << "filepath size: " << filepath.size() << endl;  
 #endif
       //DBUG("itreestream::ctor - new TFile ", 2);
       DBUG("itreestream::ctor - TFile::Open ", 2);

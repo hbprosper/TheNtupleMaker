@@ -1,5 +1,17 @@
 $Revision: 1.43 $
 
+v6_0_1 Dec. 18 2014
+-------------------
+	1. Moved non-template code from Buffer.h and BufferUtil.h to
+	BufferUtil.cc and reshuffled code to try to speed up compilation.
+	The compilation of TNM now takes 4 minutes on an 8-core machine.
+	2. Changed eventStream to eventBuffer, which is a better name since
+	objects of this class are buffers for events read from a file.
+	3. Decoupled creation of branchnames, and hence the file variables.txt,
+	by TNM from from the creation of buffers. This is another step towards
+	the replacement of Root Reflex by gROOT->ProcessLine in Root 6, which
+	uses a Just-In-Time compiler to "interpret" C++ on-the-fly. 
+
 v6_0_0 Dec. 16 2014
 -------------------
 	1. Major change to mkanalyzer.py. Variables are now encapsulated 

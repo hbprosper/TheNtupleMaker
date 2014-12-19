@@ -19,6 +19,8 @@
 //                                   If a branchname is not unique, make it
 //                                   unique by adding buffer name to branch
 //                                   name.
+//                   Wed Dec 17 2014 HBP - split off creation of branchnames
+//                                   from initializeBuffer
 //
 // $Id: BufferUtil.cc,v 1.6 2013/07/05 07:15:14 prosper Exp $
 //-----------------------------------------------------------------------------
@@ -31,28 +33,21 @@
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/Run.h"
+
+#include "PhysicsTools/TheNtupleMaker/interface/BufferUtil.h"
 #include "PhysicsTools/TheNtupleMaker/interface/kit.h"
 #include "PhysicsTools/TheNtupleMaker/interface/treestream.h"
 #include "PhysicsTools/TheNtupleMaker/interface/pluginfactory.h"
-#include "PhysicsTools/TheNtupleMaker/interface/BufferUtil.h"
-//-----------------------------------------------------------------------------
 
-/// Function to initialize a Buffer.
-void initializeBuffer(otreestream& out,
-                      std::string& objectname,  
-                      std::string& classname,
-                      std::string& label,
-                      std::string& label1,
-                      std::string& label2,
-                      std::string& prefix,
-                      std::vector<VariableDescriptor>& var,
-                      int&  count,
-                      ClassType ctype,
-                      int   maxcount,
-                      std::ofstream& log,
-                      std::string&   bufferkey,
-                      std::set<std::string>& branchset,
-                      int   debug)
+//-----------------------------------------------------------------------------
+void createBranchnames(std::string& objectname,  
+		       std::string& prefix,
+		       std::string& counter,
+		       std::vector<VariableDescriptor>& var,
+		       int   maxcount,
+		       std::ofstream& vout,
+		       std::set<std::string>& branchset,
+		       int   debug)
 {
   // Define regular expressions to check for compound methods; i.e., methods
   // of the form 
@@ -70,58 +65,17 @@ void initializeBuffer(otreestream& out,
   boost::regex strip2_("__");
   boost::regex strip2_atend("_$");
 
-  // Type name of object that exports methods, that is, whose methods
-  // return values that can be stored in the n-tuple
-
-   if ( debug > 0 )
-    {
-      switch (ctype)
-        {
-        case SINGLETON:
-          std::cout << RED  << "SINGLETON BUFFER FOR( " << classname << " )" 
-                    << BLACK << std::endl;
-          break;
-
-        case COLLECTION:
-          std::cout << RED  << "COLLECTION BUFFER FOR( " << classname 
-                    << " )" 
-                    << BLACK << std::endl;
-          break;
-
-        case CONTAINER:
-          std::cout << RED  << "CONTAINER BUFFER FOR( " << classname << " )" 
-                    << BLACK << std::endl;
-        }
-    }
-
-  // Split getByLabel into its component parts
-
-  label1 = label;
-  int i = label.find("_");
-  if ( i > 0 )
-    {
-      label1 = label.substr(0,i);
-      label2 = label.substr(i+1, label.size()-i-1);
-      label  = label1 + ", " + label2;
-    }
-
   // Just return if no variables were specified
   
   if ( var.size() == 0 ) 
     {
       std::cout 
-        << "** Warning! Buffer::init - no variables defined for class " 
-        << classname
-        << std::endl
-        << "** and getByLabel \"" << label << "\""
+        << "** Warning! createBranchnames - no variables defined for  " 
+        << objectname
         << std::endl;
       return;
     }
   
-
-  // buffer key is used in shrink buffer method of TNM
-  bufferkey = objectname;
-
   // Define variables destined for the output tree
   
   std::cout << "   n-tuple variables:" << std::endl;
@@ -138,21 +92,19 @@ void initializeBuffer(otreestream& out,
   // instance of each variable, for example to HT. If so, we shall assume 
   // that the n-tuple variable is to be a simple non-array type.
 
-  std::string counter("");
+  counter = std::string("");
 
   bool isArray = maxcount > 1; 
   if ( isArray )
     {
       // Add leaf counter to tree
       counter = "n" + prefix;        
-      out.add(counter, count);
-      std::cout << "      counter: " << counter 
-                << "\taddress( " << &count << ")" << std::endl;
-      log << "int/" 
-          << counter << "/"
-          << "n"+objectname << "/"
-          << 1 << " *" 
-          << std::endl;
+      std::cout << "      counter: " << counter << std::endl;
+      vout << "int/" 
+	   << counter << "/"
+	   << "n"+objectname << "/"
+	   << 1 << " *" 
+	   << std::endl;
     }
   
   // For every method, create the associated n-tuple variable name
@@ -193,6 +145,7 @@ void initializeBuffer(otreestream& out,
       // check for uniqueness
       if ( branchset.find(branchname) != branchset.end() )
         {
+	  // the branchname is not unique, so make it so
           std::string newbranchname =
             prefix + "_" + objectname + "." + varname;
             
@@ -212,18 +165,18 @@ void initializeBuffer(otreestream& out,
         }
       branchset.insert(branchname);
 
-      log << rtype << "/" 
-          << branchname  << "/"
-          << objectname + "_" + varname << "/"
-          << maxcount 
-          << std::endl;
+      vout << rtype << "/" 
+	   << branchname  << "/"
+	   << objectname + "_" + varname << "/"
+	   << maxcount 
+	   << std::endl;
         
       if ( isArray ) branchname += "[" + counter + "]";
       
       // Note: nvar <= i
-      var[nvar].name = branchname;
+      var[nvar].name     = branchname;
       var[nvar].maxcount = maxcount;
-      var[nvar].method = method;
+      var[nvar].method   = method;
 
       if ( debug > 0 )
         std::cout << "   " << nvar << ":\t" << branchname 
@@ -238,3 +191,111 @@ void initializeBuffer(otreestream& out,
   if ( nvar < (int)var.size() ) var.resize(nvar);
 }
 
+void init0(std::string& classname, bool& skipme)
+{
+  // We need to skip these classes, if we are running over real data
+  boost::regex getname("GenEvent|GenParticle|"
+		       "GenJet|GenRun|genPart|generator|"
+		       "LHEEventProduct|"
+		       "PileupSummaryInfo");
+  boost::smatch m;
+  skipme = boost::regex_search(classname, m, getname);
+}
+
+void init1(std::string& classname,
+	   std::string& label,
+	   std::string& label1,
+	   std::string& label2,
+	   bool& crash,
+	   BufferType& buffertype)
+{
+  // Split Label into its component parts
+  label1 = label;
+  int i = label.find("_");
+  if ( i > 0 )
+    {
+      label1 = label.substr(0,i);      
+      label2 = label.substr(i+1, label.size()-i-1);
+      label  = label1 + ", " + label2;
+    }
+
+  std::cout << "\t=== Initialize Buffer for ("
+	    << classname << ")"
+	    << std::endl;
+
+  // Get optional crash switch
+  try
+    {
+      crash =
+	(bool)(Configuration::instance().
+	       getConfig()->
+	       getUntrackedParameter<int>("crashOnInvalidHandle"));
+    }
+  catch (...)
+    {
+      crash = true;
+    }
+
+  if ( crash )
+    std::cout << "\t=== CRASH on InvalidHandle ("
+	      << classname << ")"
+	      << std::endl;
+  else
+    std::cout << "\t=== WARN on InvalidHandle ("
+	      << classname << ")"
+	      << std::endl;
+
+  // Is this a RunInfo object?
+  // Data for these classes must be extracted using the getRun()
+  // method of the event object.
+  // Definition: An extractable object is one that can be extracted from an
+  // event using getByLabel
+
+  boost::regex re("RunInfo");
+  boost::smatch match;
+  if ( boost::regex_search(classname, match, re) ) buffertype = RUNINFO;
+}
+
+
+void initCache(std::string& counter,
+	       std::vector<std::string>& fullname,
+	       std::vector<double*>& value,
+	       int& count,
+	       std::vector<std::string>& varnames,
+	       std::map<std::string, countvalue>& varmap)
+{
+  // We can use vectors for the following because an inadvertent call
+  // to a destructor is innocuous.
+
+  boost::regex getname("[^[]+");
+  varnames.clear();
+  varmap.clear();
+  for(unsigned i=0; i < fullname.size(); i++)
+    {
+      boost::smatch m;
+      boost::regex_search(fullname[i], m, getname);
+      std::string name = m[0];
+      varnames.push_back(name);
+
+      countvalue v;
+      v.count = &count;
+      v.value = value[i];
+      varmap[name] = v;
+    }
+
+  // Add counter variable
+  {
+    countvalue v;
+    v.count = &count;
+    v.value = 0;
+    varnames.push_back(counter);
+    varmap[counter] = v;
+  }
+
+  {
+    countvalue v;
+    v.count = 0;
+    v.value = 0;
+    varmap["NONE"] = v;
+  }
+}
