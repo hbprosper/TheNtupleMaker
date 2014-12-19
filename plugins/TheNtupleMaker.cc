@@ -63,6 +63,9 @@
 //                                   Implement wildcard for triggers and
 //                                   range processing for all variables
 //                   Thu Jul 04 2013 HBP - fix variables.txt
+//                   Wed Dec 17 2014 HBP - split branchname creation from
+//                                   buffer creation (in anticipation of
+//                                   move to Root 6)
 // $Id: TheNtupleMaker.cc,v 1.23 2013/07/05 07:15:14 prosper Exp $
 // ---------------------------------------------------------------------------
 #include <boost/regex.hpp>
@@ -112,9 +115,8 @@ private:
   virtual void analyze(const edm::Event&, const edm::EventSetup&);
   virtual void endJob();
 
-  void allocateBuffer();
   bool selectEvent(const edm::Event& iEvent);
-  void shrinkBuffers();
+  //void shrinkBuffers();
   void updateTriggerBranches(int blockindex);
 
   // Object that models the output n-tuple.
@@ -135,9 +137,6 @@ private:
   std::map<std::string, std::vector<int> >   indexmap;
 
   int DEBUG;
-
-  std::string logfilename_;
-  std::ofstream* log_;
   std::string analyzername_;
   std::string macroname_;
 
@@ -174,8 +173,6 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
     output(otreestream(ntuplename_,
                        "Events", 
                        "created by TheNtupleMaker $Revision: 1.23 $")),
-    logfilename_("TheNtupleMaker.log"),
-    log_(new std::ofstream(logfilename_.c_str())),
     macroname_(""),
     count_(0),
     imalivecount_(1000),
@@ -332,11 +329,6 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
   else
     DEBUG = 0;
 
-  // Write to log file
-
-  *log_ << "Created: " << ct << endl;
-  log_->close();
-
   // --------------------------------------------------------------------------
   //
   // Decode buffer information and cache it. The buffers are created during
@@ -399,7 +391,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       string blockName = vrecords[ii];
 
       if ( DEBUG > 1 ) 
-        cout << "block(" << blockName  << ")" << endl; 
+        cout << "BLOCK(" << blockName  << ")" << endl; 
       
       // Get description for current buffer of variables
       vector<string> bufferrecords = iConfig.
@@ -706,7 +698,7 @@ TheNtupleMaker::analyze(const edm::Event& iEvent,
   //Event kept. Shrink buffers as needed. Shrinking is needed if only
   //certain objects of a given buffer have been selected.
 
-  shrinkBuffers();
+  //shrinkBuffers();
 
   // Copy data to output buffers
 
@@ -743,52 +735,52 @@ TheNtupleMaker::selectEvent(const edm::Event& event)
   return keep;
 }
 
-void
-TheNtupleMaker::shrinkBuffers()
-{
-  if ( ! macroEnabled_ ) return;
+// void
+// TheNtupleMaker::shrinkBuffers()
+// {
+//   if ( ! macroEnabled_ ) return;
 
-  // If requested, write out only selected objects
+//   // If requested, write out only selected objects
  
-  // indexmap maps from buffer identifier (object variable name) to
-  // object indices
-  map<string, vector<int> >::iterator iter = indexmap.begin();
+//   // indexmap maps from buffer identifier (object variable name) to
+//   // object indices
+//   map<string, vector<int> >::iterator iter = indexmap.begin();
 
-  if ( DEBUG > 0)
-    cout << " ==> indexmap.size(): " << indexmap.size() << endl;
-  //DEBUG = 1;
-  for(iter=indexmap.begin(); iter != indexmap.end(); ++iter)
-    {
-      string name(iter->first);
-      vector<int>& indices = iter->second;
+//   if ( DEBUG > 0)
+//     cout << " ==> indexmap.size(): " << indexmap.size() << endl;
+//   //DEBUG = 1;
+//   for(iter=indexmap.begin(); iter != indexmap.end(); ++iter)
+//     {
+//       string name(iter->first);
+//       vector<int>& indices = iter->second;
       
-      if ( buffermap.find(name) != buffermap.end() )
-        {
-          if (DEBUG > 0)
-            {
-              cout << "\t** BEFORE SHRINK( " << name << " ) count: " 
-                   << buffermap[name]->count() << endl;
-              for(unsigned int i=0; i < indices.size(); ++i)
-                cout << "\t\t" << i << "\t" << indices[i] << endl;
-            }
+//       if ( buffermap.find(name) != buffermap.end() )
+//         {
+//           if (DEBUG > 0)
+//             {
+//               cout << "\t** BEFORE SHRINK( " << name << " ) count: " 
+//                    << buffermap[name]->count() << endl;
+//               for(unsigned int i=0; i < indices.size(); ++i)
+//                 cout << "\t\t" << i << "\t" << indices[i] << endl;
+//             }
 
-          buffermap[name]->shrink(indices);
+//           buffermap[name]->shrink(indices);
 
-          if (DEBUG > 0)
-            {
-              cout << "\t** AFTER SHRINK( " << name << " )  count: " 
-                   << buffermap[name]->count() << endl;
-            }
-        }
-      else
-        throw edm::Exception(edm::errors::Configuration,
-                             "object selection error: "
-                             "bad buffer key name - " + name + 
-                             "\n\tyou blocks you stones you worse "
-                             "than senseless things\n");
-    }
-  //DEBUG = 0;
-}
+//           if (DEBUG > 0)
+//             {
+//               cout << "\t** AFTER SHRINK( " << name << " )  count: " 
+//                    << buffermap[name]->count() << endl;
+//             }
+//         }
+//       else
+//         throw edm::Exception(edm::errors::Configuration,
+//                              "object selection error: "
+//                              "bad buffer key name - " + name + 
+//                              "\n\tyou blocks you stones you worse "
+//                              "than senseless things\n");
+//     }
+//   //DEBUG = 0;
+// }
 
 
 void 
@@ -1004,27 +996,60 @@ TheNtupleMaker::beginRun(const edm::Run& run,
   if ( buffersInitialized ) return;
 
   buffersInitialized = true;
-
+  
+  // ---------------------------------------------------------------
+  // Create branchnames.  Make sure to eliminate
+  // duplicates, but warn that this is being done 
+  // Block name is same as object name. variables_[i].name will contain
+  // the branch name
+  // ---------------------------------------------------------------
   // Write branches and variables to variables file 
 
   ofstream vout("variables.txt");
   time_t tt = time(0);
   string ct(ctime(&tt));
   vout << "tree: Events " << ct << endl;
-  
-  // ---------------------------------------------------------------
-  // Create buffers of appropriate type. Make sure to eliminate
-  // duplicates, but warn that this is being done  
-  // ---------------------------------------------------------------
-  set<string> branchset;
 
+  set<string> branchset;
+  vector<string> counter(blockName_.size());
+  for(unsigned int i=0; i < blockName_.size(); i++)
+    {
+      if ( DEBUG > 0 )
+        cout << "block name(" << blockName_[i] << ")" << endl;
+
+      if ( bufferName_[i] == "edmTriggerResultsHelper" ) 
+        updateTriggerBranches(i);
+
+      createBranchnames(blockName_[i],
+			prefix_[i],
+			counter[i],
+			variables_[i],
+			maxcount_[i],
+			vout,
+			branchset,
+			DEBUG);
+    }
+  vout.close();
+  // ---------------------------------------------------------------
+  // Create ntuple analyzer template if requested
+  // ---------------------------------------------------------------
+  if ( analyzername_ != "" )
+    {
+      string cmd("mkanalyzer.py "  + kit::nameonly(analyzername_));
+      cout << cmd << endl;
+      kit::shell(cmd);
+    }
+
+  // ---------------------------------------------------------------
+  // Create buffers of appropriate type. 
+  // ---------------------------------------------------------------
+  if ( DEBUG > 0 )
+    cout << "CREATING Buffers"  << endl;
+ 
   for(unsigned int i=0; i < blockName_.size(); i++)
     {
       if ( DEBUG > 0 )
         cout << "BLOCK NAME(" << blockName_[i] << ")" << endl;
-
-      if ( bufferName_[i] == "edmTriggerResultsHelper" ) 
-        updateTriggerBranches(i);
 
       // ---------------------------------------------------------------
       // Note: ->create(...) returns an auto_ptr to BufferThing. 
@@ -1057,20 +1082,17 @@ TheNtupleMaker::beginRun(const edm::Run& run,
           << "that lurks in the mud hatch out\n"
           << "\tI'm unable to create buffer " + bufferName_[i]; 
 
-
       // ... and initialize it
       buffers.back()->init(output,
-                           blockName_[i], 
+			   blockName_[i],
                            label_[i], 
-                           prefix_[i], 
+			   counter[i],
                            variables_[i], 
                            maxcount_[i], 
-                           vout,
-                           branchset,
                            DEBUG);
 
       // cache addresses of buffers
-      string key = buffers.back()->key();
+      string key = buffers.back()->objectname();
       buffermap[key] = buffers.back();
 
       if ( DEBUG > 0 )
@@ -1082,16 +1104,7 @@ TheNtupleMaker::beginRun(const edm::Run& run,
                << endl << endl;
         }
     }
-  vout.close();
 
-  // Create ntuple analyzer template if requested
-
-  if ( analyzername_ != "" )
-    {
-      string cmd("mkanalyzer.py "  + kit::nameonly(analyzername_));
-      cout << cmd << endl;
-      kit::shell(cmd);
-    }
 
   // Cache variable addresses for each buffer
   // Make sure branch names are unique
@@ -1101,7 +1114,7 @@ TheNtupleMaker::beginRun(const edm::Run& run,
   for(unsigned int i=0; i < buffers.size(); ++i)
     {
       vector<string>& vnames = buffers[i]->varnames();
-      string objname = buffers[i]->key();
+      string objname = buffers[i]->objectname();
       cout << endl << i+1 
            << "\tobject: " << objname 
            << "\taddress: " << buffermap[objname] << endl;
