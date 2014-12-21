@@ -1,4 +1,6 @@
-$Revision: 1.43 $
+v6_0_2 Dec. 20 2014
+-------------------
+	1. Update mkntuplecfi.py to use new format of classlist.txt.
 
 v6_0_1 Dec. 18 2014
 -------------------
