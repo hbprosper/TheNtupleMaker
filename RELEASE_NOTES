@@ -1,3 +1,7 @@
+v6_0_3 Dec. 21 2014
+-------------------
+	1. Update mkvariables.py (remove obsolute module elementtree)
+
 v6_0_2 Dec. 20 2014
 -------------------
 	1. Update mkntuplecfi.py to use new format of classlist.txt.

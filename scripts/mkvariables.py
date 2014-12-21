@@ -20,12 +20,12 @@
 #               20-Jul-2011 HBP fix problem with basic type
 #               09-Jul-2013 HBP re-order imports to avoid Error message from
 #                           root. Also do not convert names to lower case.
+#               21-Dec-2014 HBP get rid of xml module
 #$Id: mkvariables.py,v 1.19 2013/07/11 01:54:22 prosper Exp $
 # -----------------------------------------------------------------------------
 import os, sys, re
 from string import atof, atoi, replace, lower,\
 	 upper, joinfields, split, strip, find
-from elementtree.ElementTree import Element
 from time import sleep, ctime
 from ROOT import *
 # -----------------------------------------------------------------------------
@@ -69,7 +69,8 @@ def main():
 
 	# 2nd argument is the TTree name
 	if argc > 1:
-		treename = joinfields(argv[1:], ' ') # Can have more than one tree
+		# Can have more than one tree
+		treename = joinfields(argv[1:], ' ') 
 		stream = itreestream(filename, treename)
 	else:
 		stream = itreestream(filename)
