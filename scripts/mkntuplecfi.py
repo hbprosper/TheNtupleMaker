@@ -103,7 +103,7 @@ stripnsp = re.compile(r'^(pat|edm|cmg|reco)')
 CLASSMAP = {}
 if os.path.exists(CLASSLISTFILE):
 	records = map(split, open(CLASSLISTFILE).readlines())
-	recs = map(lambda x: (x[0], joinfields(x[1:],' ')), records)
+	recs = map(lambda x: (x[-1], joinfields(x[1:-1],' ')), records)
 	for ctype, name in recs:
 		fullname = getFullname(name)
 		name = stripstd.sub('',name)
@@ -664,7 +664,7 @@ class Gui:
 		record += stream.str()
 		stream.close()
 		sleep(2)
-		
+
 		self.progTimer.Stop()
 		self.progressBar.Reset()
 
