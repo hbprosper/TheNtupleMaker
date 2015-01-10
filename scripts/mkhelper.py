@@ -6,6 +6,7 @@
 #          22-Apr-2012 HBP - use SINGLETON and COLLECTION keywords
 #          03-May-2012 HBP - add methods automatically
 #          15-Sep-2012 HBP - need to import time and rstrip
+#          09-Jan-2015 HBP - make compatible with CMSSW_7_X_X
 #
 #$Id: mkhelper.py,v 1.14 2013/07/05 21:01:54 prosper Exp $
 #------------------------------------------------------------------------------
@@ -215,35 +216,23 @@ namespace %(namespace)s
   class %(name)s : public HelperFor<%(classname)s>
   {
   public:
-	///
-	%(name)s();
+    ///
+    %(name)s();
 
-	virtual ~%(name)s();
+    virtual ~%(name)s();
 
-	// Uncomment if this class does some event-level analysis
-	// virtual void analyzeEvent();
+    // Uncomment if this class does some event-level analysis
+    // virtual void analyzeEvent();
 	 
-	// Uncomment if this class does some object-level analysis
-	// virtual void analyzeObject();
+    // Uncomment if this class does some object-level analysis
+    // virtual void analyzeObject();
 
-	// ---------------------------------------------------------
-	// -- User access methods go here
-	// ---------------------------------------------------------
-
+    // ---------------------------------------------------------
+    // -- User access methods go here
+    // ---------------------------------------------------------
 	
   private:
-    // -- User internals
-
-
-  public:
-    // ---------------------------------------------------------
-    // -- Access Methods
-    // ---------------------------------------------------------
-
-	// WARNING: some methods may fail to compile because of coding
-	//          problems in one of the CMSSW base classes. If so,
-	//          just comment out the offending method and try again.
-  
+    // -- User internals 
 %(methods)s
   };
 }
@@ -509,8 +498,9 @@ def main():
 	for method, value in db['methods'].items():
 		nom, clname, rtype, fullrtype, signature, methodcall, simpleArgs=value
 		meths[lower(signature)] = (method, rtype,
-								   fullrtype,
-								   signature, methodcall, clname, simpleArgs)
+					   fullrtype,
+					   signature, methodcall, 
+					   clname, simpleArgs)
 	sigs = meths.keys()
 	sigs.sort()
 
@@ -576,7 +566,20 @@ def main():
 	names['name']       = name
 	names['fullname']   = fullname
 	names['headername'] = upper(bname)
-	names['methods']    = methods
+	if classname == 'edm::Event':
+		names['methods'] = ''
+	else:
+		methheader = '''
+  public:
+    // ---------------------------------------------------------
+    // -- Access Methods
+    // ---------------------------------------------------------
+
+    // WARNING: some methods may fail to compile because of coding
+    //          problems in one of the CMSSW base classes. If so,
+    //          just comment out the offending method and try again. 
+'''
+                names['methods']    = methheader + methods
 	
 	if template == "":
 		names['classname']  = classname
@@ -596,7 +599,12 @@ def main():
 		names['header'] = '#include "%s"' % header
 	else:
 		names['header'] = '#include "DataFormats/Common/interface/ValueMap.h"'\
-						  '\n#include "%s"' % header
+		    '\n#include "%s"' % header
+
+	# For edm::Event, use a forward declaration
+	if classname == 'edm::Event':
+		names['header']='namespace edm { class Event; }'
+
 	names['package']    = PACKAGE
 	names['subpackage'] = SUBPACKAGE
 	names['plugindir']  = PLUGINDIR
