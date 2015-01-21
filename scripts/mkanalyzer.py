@@ -364,7 +364,7 @@ int main(int argc, char** argv)
   vector<string> filenames = fileNames(cl.filelist);
 
   // Create tree reader
-  itreestream stream(filenames, "Events");
+  itreestream stream(filenames, "%(treename)s");
   if ( !stream.good() ) error("can't read root input files");
 
   // Create a buffer to receive events from the stream
@@ -432,7 +432,7 @@ def main():
     filenames = fileNames(cl.filelist)
 
     # Create tree reader
-    stream = itreestream(filenames, "Events")
+    stream = itreestream(filenames, "%(treename)s")
     if not stream.good():
         error("can't read input files")
 

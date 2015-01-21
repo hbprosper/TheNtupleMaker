@@ -15,13 +15,13 @@
 #          15-May-2010 HBP Change format of floats - use more precision
 #          17-Sep-2010 HBP handle abs(..) variables
 #          18-Oct-2010 HBP remove ";" from end of namespace
-#$Id: netwrite.py,v 1.17 2013/07/05 21:01:54 prosper Exp $
+#          12-May-2014 HBP automatically scale output for regression problems
+#$Revision: 1.3 $
 #------------------------------------------------------------------------------
 import os, sys
 from getopt import getopt, GetoptError
-from string import atof, atoi, replace, lower,\
-	 upper, joinfields, split, strip, find
-from time import sleep, ctime
+from string import *
+from time   import *
 #------------------------------------------------------------------------------
 # Constants
 #------------------------------------------------------------------------------
@@ -52,6 +52,7 @@ Usage:
   counting from 0.
 '''
 shortOptions = 'Hhr:n:'
+MAXARGS= 31 # Maximum number of arguments
 #------------------------------------------------------------------------------
 # Functions
 #------------------------------------------------------------------------------
@@ -122,7 +123,6 @@ class NetWriter:
 		if os.path.exists(varfile):
 			self.var = map(lambda x: split(x), open(varfile).readlines())
 			self.var = filter(lambda x: len(x) > 0, self.var)
-
 			if len(self.var[0]) != 3:
 				self.var = map(lambda x: [x[0],0.0,1.0], self.var)
 		else:
@@ -132,6 +132,11 @@ class NetWriter:
 				nm = "X%d" % i
 				self.var.append([nm, 0.0, 1.0])
 
+		# check length of var file
+		# if length of var file is greater than the
+		# number of inputs, we assume 
+		self.scaleOutput = len(self.var) > self.ninputs
+		
 		nparams = nhidden * ( ninputs + 2 ) + 1
 
 		self.filename = name + ".cpp"
@@ -142,9 +147,15 @@ class NetWriter:
 		out.write('// Network: ' + name + '\n')
 		out.write('// Inputs:\n')
 		out.write('//    %-40s%12s%12s\n' % ("","Offset", "Scale"))
-		for namen, mean, sigma in self.var:
+		for namen, mean, sigma in self.var[:ninputs]:
 			out.write('//    %-40s%12.3e%12.3e\n' % (namen,
-			atof(mean), atof(sigma)))
+								 atof(mean), atof(sigma)))
+		if self.scaleOutput:
+			out.write('// Output:\n')
+			out.write('//    %-40s%12s%12s\n' % ("","Offset", "Scale"))
+			namen, mean, sigma = self.var[-1]
+			out.write('//    %-40s%12.3e%12.3e\n' % (namen,
+								 atof(mean), atof(sigma)))			
 		out.write('//\n')
 		out.write('// Created: ' + ctime(time()) + ' by netwrite.py\n')
 		out.write('//' + 77*'-' + '\n')
@@ -161,14 +172,20 @@ class NetWriter:
 		out.write('  static const int nhidden  =%d;\n' % nhidden)
 		out.write('  static const int nparams  =%d;\n\n' % nparams)
 
-		out.write('  static const double mean[ninputs]={\n')
+		if self.scaleOutput:
+			out.write('  static const double mean[ninputs+1]={\n')
+		else:
+			out.write('  static const double mean[ninputs]={\n')
 		delim = ' '
 		for namen, mean, sigma in self.var:
 			out.write('%s%11.4e' % (delim,atof(mean)))
 			delim = ',\n '
 		out.write('\n  };\n\n')
 
-		out.write('  static const double sigma[ninputs]={\n')
+		if self.scaleOutput:
+			out.write('  static const double sigma[ninputs+1]={\n')
+		else:
+			out.write('  static const double sigma[ninputs]={\n')
 		delim = ' '
 		for namen, mean, sigma in self.var:
 			out.write('%s%11.4e' % (delim,atof(sigma)))
@@ -298,7 +315,7 @@ class NetWriter:
 		out.write('\n')
 		out.write('  // Compute average over networks\n')
 		out.write('  std::vector<double> in(ninputs);\n')
-		for index, (namen, mean, sigma) in enumerate(var):
+		for index, (namen, mean, sigma) in enumerate(var[:ninputs]):
 			out.write('  in[%d] = (inputs[%d] - mean[%d]) / sigma[%d];\n' % \
 					  (index, index, index, index))
 		out.write('\n')
@@ -306,10 +323,13 @@ class NetWriter:
 		out.write('  double x = 0.0;\n')
 		out.write('  for(int i=first; i <= last; i++) '\
 				  'x += netfun(in, weight[i]);\n')
-		out.write('  return x / n;\n')
+		out.write('  x /= n;\n')
+		if self.scaleOutput:
+			out.write('  x = mean[ninputs] + sigma[ninputs] * x;\n')
+		out.write('  return x;\n')
 		out.write('}\n')
 
-		if len(var) < 31:
+		if len(var) < MAXARGS:
 
 			# Write calling sequence
 
@@ -318,14 +338,14 @@ class NetWriter:
 			space = (find(str,'(')+1)*' '
 			tab = ''
 			out.write(str)
-			for namen, mean, sigma in var:
+			for namen, mean, sigma in var[:ninputs]:
 				if namen[0]=="|": namen = namen[1:-1]
 				out.write('%sdouble %s,\n' % (tab, namen))
 				tab = space 
 			out.write('%sint first=0, int last=nnetworks-1)\n' % tab)
 			out.write('{\n')
 			out.write('  std::vector<double> in(ninputs);\n')
-			for index, (namen, mean, sigma) in enumerate(var):
+			for index, (namen, mean, sigma) in enumerate(var[:ninputs]):
 				if namen[0]=="|": namen = "abs(%s)" % namen[1:-1]
 				out.write('  in[%d] = %s;\n' % \
 						  (index, namen))

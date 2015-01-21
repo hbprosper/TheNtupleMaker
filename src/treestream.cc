@@ -1089,27 +1089,10 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
           // ----------------------------------------
           _tree = 0; // make sure to zero
           
-          TIter nextkey(file_->GetListOfKeys());
-          
-          while ( TKey* key = (TKey*)nextkey() )
-            {
-              TObject* o = key->ReadObj();
-              if ( o->IsA()->InheritsFrom("TTree") )
-                {
-                  if ( _tree == 0 ) _tree = (TTree*)o; // Record first tree
-                  
-                  if ( string(_tree->GetName()) == "Events" )
-                    {
-                      // Found a tree called Events, so use it
-                      _tree = (TTree*)o;
-                      break;
-                    }
-                }
-            }
+	  treename = _gettree(file_);
+
           if ( ! _tree )
             fatal("itreestream - NO tree found in file " + filepath[0]);
-          
-          treename = string(_tree->GetName());
           
           cout << endl << "** NB. itreestream - using tree: " 
                << treename << endl << endl;
@@ -1228,6 +1211,37 @@ itreestream::~itreestream()
   close();
 }
 
+string
+itreestream::_gettree(TDirectory* dir, string treename, int depth)
+{
+  depth += 1;
+  if ( depth > 5 ) return treename;
+
+  TIter nextkey(dir->GetListOfKeys());          
+  while ( TKey* key = (TKey*)nextkey() )
+    {
+      TObject* o = key->ReadObj();
+      if ( o->IsA()->InheritsFrom("TTree") )
+	{
+	  if ( _tree == 0 ) _tree = (TTree*)o; // Record first tree
+	  string tname = string(_tree->GetName());
+          treename += tname;
+
+	  if ( tname == "Events" )
+	    {
+	      // Found a tree called Events, so use it
+	      _tree = (TTree*)o;
+	      break;
+	    }
+	}
+      else if ( o->IsA()->InheritsFrom("TDirectory") )
+	{
+	  treename += string(o->GetName())+"/";
+	  treename = _gettree((TDirectory*)o, treename, depth);
+	}
+    }
+  return treename;
+}
 // ------------------------------------------------------------------------
 // Get all branches from the root-file, recursively. Create a
 // Field for each branch/leaf. By doing this recursively we do not have 

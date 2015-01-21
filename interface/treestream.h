@@ -358,6 +358,9 @@ class itreestream
   void _select     (std::string name, void* address, int maxsize, 
                     char srctype, bool isvector=false);
   void _update();
+  std::string _gettree(TDirectory* dir, 
+		       std::string treename="", 
+		       int depth=0);
 
   bool _delete;
 };
