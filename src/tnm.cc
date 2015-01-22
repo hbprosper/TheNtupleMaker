@@ -149,8 +149,7 @@ void outputFile::close()
       file_ = tree->GetCurrentFile();
     }
   file_->cd();
-  file_->Write("", TObject::kWriteDelete);
-  //file_->Write();
+  file_->Write("", TObject::kOverwrite);
   file_->ls();
   file_->Close();
 }
