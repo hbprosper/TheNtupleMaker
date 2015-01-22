@@ -82,7 +82,7 @@ std::string shell(std::string cmd)
 outputFile::outputFile(std::string filename)
   : filename_(filename),
     file_(new TFile(filename_.c_str(), "recreate")),
-    tree_(0),
+    tree(0),
     b_weight_(0),
     entry_(0),
     SAVECOUNT_(50000),
@@ -91,7 +91,7 @@ outputFile::outputFile(std::string filename)
   file_->cd();
   hist_ = new TH1F("counts", "", 1,0,1);
   hist_->SetBit(TH1::kCanRebin);
-    hist_->SetStats(0);
+  hist_->SetStats(0);
 }
 
 outputFile::outputFile(std::string filename, 
@@ -99,15 +99,15 @@ outputFile::outputFile(std::string filename,
 		       int savecount) 
   : filename_(filename),
     file_(new TFile(filename.c_str(), "recreate")),
-    tree_(ev.output ? 
-	  ev.output->tree()->CloneTree(0) : 0),
-    b_weight_(tree_ ? 
-	      tree_->Branch("eventWeight", &weight_, "eventWeight/D") : 0),
+    tree(ev.input ? 
+	 ev.input->tree()->CloneTree(0) : 0),
+    b_weight_(tree ? 
+	      tree->Branch("eventWeight", &weight_, "eventWeight/D") : 0),
     entry_(0),
     SAVECOUNT_(savecount),
     ev_(&ev)
 {
-  if ( tree_ == 0 )
+  if ( tree == 0 )
     error("outputFile - tree pointer is NULL");
 
   std::cout << "events will be skimmed to file "
@@ -121,17 +121,17 @@ outputFile::outputFile(std::string filename,
 
 void outputFile::write(double weight)
 {
-  if ( tree_ == 0 ) return;
+  if ( tree == 0 ) return;
   if ( ev_ ) ev_->saveObjects();
 
   weight_ = weight;
-  file_   = tree_->GetCurrentFile();
+  file_   = tree->GetCurrentFile();
   file_->cd();
-  tree_->Fill();
+  tree->Fill();
 
   entry_++;
   if ( entry_ % SAVECOUNT_ == 0 )
-    tree_->AutoSave("SaveSelf");
+    tree->AutoSave("SaveSelf");
 }
 
 void outputFile::count(std::string cond, double w)
@@ -143,14 +143,14 @@ void outputFile::count(std::string cond, double w)
 void outputFile::close()
 {
   std::cout << "==> histograms saved to file " << filename_ << std::endl;
-  if ( tree_ )
+  if ( tree )
     {
       std::cout << "==> events skimmed to file " << filename_ << std::endl;
-      file_ = tree_->GetCurrentFile();
+      file_ = tree->GetCurrentFile();
     }
   file_->cd();
-  //file_->Write("", TObject::kWriteDelete);
-  file_->Write();
+  file_->Write("", TObject::kWriteDelete);
+  //file_->Write();
   file_->ls();
   file_->Close();
 }
