@@ -8,6 +8,7 @@
 struct eventBuffer 
 {
   void saveObjects() {}
+  itreestream* input;
   otreestream* output;
 };
 #endif
