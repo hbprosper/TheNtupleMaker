@@ -602,7 +602,7 @@ class Gui:
 			self.vlframe[id] = TGVerticalFrame(self.hframe[id], 1, 1)
 			self.hframe[id].AddFrame(self.vlframe[id], TOP_X_Y)
 			
-			self.llabel[id] = TGLabel(self.vlframe[id], "getByLabel")
+			self.llabel[id] = TGLabel(self.vlframe[id], "Category")
 			self.vlframe[id].AddFrame(self.llabel[id], TOP_X)
 			
 			self.labelBox[id] = TGListBox(self.vlframe[id],
@@ -1195,7 +1195,7 @@ class Gui:
 
 			if labels == []:
 				message = "Either:\ngo boil your head...\n" \
-						  "or choose getByLabel for class:\n%s" % cname
+						  "or choose category for class:\n%s" % cname
 				THelpDialog(self.window, "Warning", message, 250, 100)
 				return
 
