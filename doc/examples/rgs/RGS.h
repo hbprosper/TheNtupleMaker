@@ -4,7 +4,8 @@
 // File:    RGS.h
 // Purpose: Declaration of RGS classes
 // Created: 18-Aug-2000 Harrison B. Prosper, Chandigarh, India
-//$Revision: 1.3 $
+// Updated  18-Jan-2015 HBP - add selection argument - Bari, Italy
+//$Revision: 1.4 $
 //////////////////////////////////////////////////////////////////////////////
 #ifdef __WITH_CINT__
 #include "TObject.h"
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <iomanip>
 #include "TFile.h"
+#include "TTree.h"
 
 typedef std::vector<int>     vint;
 typedef std::vector<vint>    vvint;
@@ -40,13 +42,13 @@ typedef std::map< std::string, int >  varmap;
 
 static vdouble  vdNULL;
 
-
-bool slurp_table(std::string filename,
-                 std::vector<std::string>& header, 
-                 std::vector<std::vector<double> >& data,
-                 int start=0,
-                 int count=0,
-                 bool extend=false);
+bool slurpTable(std::string filename,
+		std::vector<std::string>& header, 
+		std::vector<std::vector<double> >& data,
+		int start=0,
+		int count=0,
+		std::string treename="",
+		std::string selection="");
 
 std::string rgsversion();
 ///
@@ -57,10 +59,16 @@ public:
   RGS();
 
   ///
-  RGS(std::string cutdatafilename, int start=0, int numrows=0);
+  RGS(std::string cutdatafilename, int start=0, int numrows=0, 
+      std::string treename="",
+      std::string weightname="",
+      std::string selection="");
 
   ///
-  RGS(std::vector<std::string>& cutdatafilename, int start=0, int numrows=0);
+  RGS(std::vector<std::string>& cutdatafilename, int start=0, int numrows=0,
+      std::string treename="",
+      std::string weightname="",
+      std::string selection="");
 
   virtual ~RGS();
 
@@ -70,14 +78,12 @@ public:
   /// Add a data file.
   void  add(std::string datafilename,
             int start=0, 
-            int numrows=0,       // Read all rows  
-            std::string weightname="Weight");
+            int numrows=0);     // Read all rows  
   
   /// Add one or more data files.
   void  add(std::vector<std::string>& datafilename,
             int start=0, 
-            int numrows=0,
-            std::string weightname="Weight");
+            int numrows=0);
 
   /// Run the RGS algorithm for specified cut variables and cut directions.
   void  run(vstring&  cutvar,  // Variables defining cuts 
@@ -131,9 +137,17 @@ private:
   vdouble     _totals;
   vvdouble    _counts;
 
+  TFile*      _file;
+  TTree*      _tree;
+  std::string _treename;
+  std::string _weightname;
+  std::string _selection;
+
   std::vector<std::vector<int> > _cutpointindex;
 
-  void _init(vstring& filename, int start=0, int numrows=0);
+  void _init(vstring& filename, int start=0, int numrows=0, 
+	     std::string treename="",
+	     std::string selection="");
   bool _boxcut(float x, int cutpoint, int jcut);
   bool _laddercut(vdouble& datarow, int cutpoint, int& cut);
 
