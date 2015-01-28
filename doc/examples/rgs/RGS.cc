@@ -5,8 +5,7 @@
 //  Updated: 05-Apr-2002 HBP tidy up
 //           17-May-2006 HBP use weightindex instead of a vector of weights
 //           11-Aug-2012 HBP & Sezen - generalize
-//-----------------------------------------------------------------------------
-//$Revision: 1.3 $
+//           18-Jan-2015 HBP - add optional event selection
 //-----------------------------------------------------------------------------
 #include <stdio.h>
 #include <cmath>
@@ -16,16 +15,12 @@
 #include <iomanip>
 #include <sstream>
 #include <set>
+#include <map>
 
-#ifdef PROJECT_NAME
-#include "PhysicsTools/TheNtupleMaker/interface/RGS.h"
-#else
 #include "RGS.h"
-#endif
-
-#include "TFile.h"
-#include "TTree.h"
 #include "TRandom3.h"
+#include "TLeaf.h"
+#include "TTreeFormula.h"
 
 using namespace std;
 
@@ -35,10 +30,10 @@ ClassImp(RGS)
 
 string rgsversion() 
 {
-  return string("RGS - $Revision: 1.3 $");
+  return string("RGS - v2.1");
 }
 
-static int DEBUG = getenv("DBRGS") > 0 ? atoi(getenv("DBRGS")) : 0;
+static int DEBUG = getenv("DBRGS") > (char*)0 ? atoi(getenv("DBRGS")) : 0;
 
 void error(string message)
 {
@@ -97,67 +92,135 @@ void bisplit(string str, string& left, string& right, string delim,
 
 
 //----------------------------------------------------------------------------
-// Description: Read from a text file. For use in Root.
+// Description: Read from a text file or simple ntuple. For use in Root.
 // Created: 03-May-2005 Harrison B. Prosper
 //----------------------------------------------------------------------------
 
-bool slurp_table(string filename,
-                 vector<string>& header, 
-                 vector<vector<double> >& data,
-                 int start,
-                 int count,
-                 bool extend)
+bool slurpTable(string filename,
+		vector<string>& header, 
+		vector<vector<double> >& data,
+		int start,
+		int count,
+		string treename,
+		string selection)
 {
-  ifstream stream(filename.c_str());
-  if ( ! stream.good() )
-    { 
-      error("slurp_table - unable to open "+filename);
-      return false;
-    }
-
-  // Read header
-
-  string line;
-  getline(stream, line, '\n');
-  istringstream inp(line);
-
+  cout << "reading file " << filename[0] << endl;
   header.clear();
-  while ( inp >> line ) header.push_back(line);
+  int nrow=0;
 
-  // Skip the first "start" lines
-
-  int n=0;
-  for(int i=0; i < start; i++)
+  // if treename given assume this is an ntuple
+  bool ntuple = treename != "";
+  if ( ntuple )
     {
-      n++;
-      if ( !getline(stream, line, '\n') ) break;
-    }
+      TFile rfile(filename.c_str());
+      if ( !rfile.IsOpen() )
+	{
+	  error("slurpTable - unable to open "+filename);
+	  return false;
+	}
+      TTree* tree = (TTree*)rfile.Get(treename.c_str());
+      if ( !tree )
+	{
+	  error("slurpTable - unable to get tree "+treename);
+	  return false;
+	}
+      tree->ResetBranchAddresses();
 
-  // Read "count" rows if count > 0, otherwise read all lines
+      // allow for event selection when using trees
+      TTreeFormula* keep = 0;
+      bool selectEvent = selection != "";
+      if ( selectEvent ) 
+	keep = new TTreeFormula("selection", 
+				selection.c_str(), tree);
+      
+      // get branches
+      TObjArray* branches = tree->GetListOfBranches();
+      int nbranches = branches->GetEntries();
+      vector<int>    ibuffer(nbranches);
+      vector<float>  fbuffer(nbranches);
+      vector<double> dbuffer(nbranches);
+      vector<char>   vtype(nbranches);
 
-  if ( extend )
-    {
-      int nrow=0;
-      while ( getline(stream, line, '\n') )
-        {
-          istringstream inp2(line);
-          for(int i=0; i < (int)header.size(); i++)
-            {
-              double x;
-              inp2 >> x;
-              data[nrow].push_back(x);
-            }
-          nrow++;
-          if ( count <= 0 ) continue;
-          if ( nrow >= count ) break;
-        }
+      cout << "variables" << endl;
+      for(int i=0; i < nbranches; i++)
+	{
+	  // assume simple ntuple with leaf name = branch name
+	  TBranch* branch = (TBranch*)((*branches)[i]);
+	  header.push_back(branch->GetName());
+	  TLeaf* leaf = branch->GetLeaf(branch->GetName());
+	  vtype[i] = leaf->GetTypeName()[0];
+
+	  if ( vtype[i] == 'I' )
+	    tree->SetBranchAddress(header.back().c_str(), &ibuffer[i]);
+	  else if ( vtype[i] == 'F' )
+	    tree->SetBranchAddress(header.back().c_str(), &fbuffer[i]);
+	  else if ( vtype[i] == 'D' )
+	    tree->SetBranchAddress(header.back().c_str(), &dbuffer[i]);
+	  //cout << "\t" << vtype[i] << "\t" << header.back() << endl;
+	}
+
+      // Read "count" rows if count > 0, otherwise read all lines
+      
+      int maxrows = tree->GetEntries();
+      count = count > 0 ? min(count, maxrows) : maxrows;
+      int maxrow = start + count - 1;
+      maxrow = min(maxrow, maxrows-1);
+      cout << "reading rows " << start << " to " << maxrow << endl;
+
+      for(int row=0; row <= maxrow; row++)
+	{
+	  tree->GetEntry(row);
+	  if ( selectEvent )
+	    {
+	      if ( ! (keep->EvalInstance(row) > 0) ) continue;
+	    }
+
+	  for(unsigned int i=0; i < dbuffer.size(); i++)
+	    {	     
+	      if ( vtype[i] == 'I' )
+		dbuffer[i] = ibuffer[i];
+	      else if ( vtype[i] == 'F' )
+		dbuffer[i] = fbuffer[i];
+	    }
+
+	  if ( nrow < start ) continue;
+
+	  data.push_back(dbuffer);
+
+	  nrow++;
+	  if ( nrow % 10000 == 0 )
+	    cout << "\t...read " << nrow << " rows" << endl;
+	}
+      if ( keep ) delete keep;
     }
   else
     {
-      data.clear();
-      data.reserve(100000);
+      ifstream stream(filename.c_str());
+      if ( ! stream.good() )
+	{ 
+	  error("slurpTable - unable to open "+filename);
+	  return false;
+	}
+
+      // Read header
+
+      string line;
+      getline(stream, line, '\n');
+      istringstream inp(line);
+      while ( inp >> line ) header.push_back(line);
+
+      // Skip the first "start" lines
+
+      int n=0;
+      for(int i=0; i < start; i++)
+	{
+	  n++;
+	  if ( !getline(stream, line, '\n') ) break;
+	}
+
+      // Read "count" rows if count > 0, otherwise read all lines
+
       vector<double> d(header.size());
-      int nrow=0;
       while ( getline(stream, line, '\n') )
         {	  
           istringstream inp2(line);      
@@ -166,12 +229,14 @@ bool slurp_table(string filename,
           nrow++;
           if ( count <= 0 ) continue;
           if ( nrow >= count ) break;
+	  if ( nrow % 10000 == 0 ) cout << "\t...read " 
+					<< nrow << " rows" << endl;
         }
+      stream.close();
     }
-  stream.close();
+  cout << "read a total of " << nrow << " rows" << endl << endl;
   return true;
 }
-
 
 //-----------------------------
 // CONSTRUCTORS
@@ -181,8 +246,14 @@ RGS::RGS()
   : _status(0)
 {}
 
-RGS::RGS(vstring& filenames, int start, int numrows)
-  : _status(0)
+RGS::RGS(vstring& filenames, int start, int numrows, 
+	 string treename,
+	 string weightname,
+	 string selection)
+  : _status(0),
+    _treename(treename),
+    _weightname(weightname),
+    _selection(selection)
 {
   // Definitions:
   //  Cut file
@@ -191,14 +262,20 @@ RGS::RGS(vstring& filenames, int start, int numrows)
   //  Search file
   //    The file on which the cuts are to be applied
   //
-  _init(filenames, start, numrows);
+  _init(filenames, start, numrows, _treename, _selection);
 }
 
-RGS::RGS(string filename, int start, int numrows)
-  : _status(0)
+RGS::RGS(string filename, int start, int numrows, 
+	 string treename,
+	 string weightname,
+	 string selection)
+  : _status(0),
+    _treename(treename),
+    _weightname(weightname),
+    _selection(selection)
 {
   vstring filenames(1, filename);
-  _init(filenames, start, numrows);
+  _init(filenames, start, numrows, _treename, _selection);
 }
 
 //-----------------------------
@@ -218,29 +295,31 @@ RGS::good() { return _status == 0; }
 void 
 RGS::add(string filename, 
          int    start, 
-         int    numrows,
-         string weightname)
+         int    numrows)
 { 
   _searchname.push_back(nameonly(filename));  
   _searchdata.push_back(vvdouble());
   _weightindex.push_back(-1); // Index to weight field
   _status = 0;
+  vector<vector<double> >& sdata = _searchdata.back();
+  vector<string> header;
 
-  vector<string> var;
-  if ( ! slurp_table(filename, var, _searchdata.back(), start, numrows) )
+  if ( ! slurpTable(filename, header, sdata, start, numrows, 
+		    _treename, 
+		    _selection) )
     {
       cout << "**Error** unable to read file " << filename << endl;
       _status = -1;
       return;
     }
-
-  for(int i = 0; i < (int)var.size(); i++)
+      
+  for(int i = 0; i < (int)header.size(); i++)
     {
-      if ( weightname == var[i] )
+      if ( _weightname == header[i] )
         {
           _weightindex.back() = i;
           cout << "\tRGS will weight events with the variable "
-               << weightname
+               << _weightname
                << " in column " << i << endl;
           break;
         }
@@ -248,33 +327,39 @@ RGS::add(string filename,
 }
 
 void 
-RGS::add(vector<string>&   filename, 
-         int start, int numrows,
-         string   weightname)
+RGS::add(vector<string>& filename, 
+         int start, 
+	 int numrows)
 { 
   _searchname.push_back(nameonly(filename[0]));  
   _searchdata.push_back(vvdouble());
   _weightindex.push_back(-1); // Index to weight field
   _status = 0;
+  vector<vector<double> >& sdata = _searchdata.back();
+  vector<string> header;
 
-  int index=0;
-  bool extend=false;
   for(int ifile=0; ifile < (int)filename.size(); ifile++)
     {
-      vector<string> var;
-      if ( ! slurp_table(filename[ifile], var, _searchdata.back(), 
-                         start, numrows, extend) )
+      header.clear();
+      if ( ! slurpTable(filename[ifile], header, sdata, start, numrows, 
+			_treename, 
+			_selection) )
         {
           cout << "**Error** unable to read file " << filename[ifile] << endl;
           _status = -1;
           return;
-        }
-      extend = true;
+	}
+    }
 
-      for(int i = 0; i < (int)var.size(); i++)
+  for(int i = 0; i < (int)header.size(); i++)
+    {
+      if ( _weightname == header[i] )
         {
-          if ( weightname == var[i] ) _weightindex.back() = index;
-          index++;
+          _weightindex.back() = i;
+          cout << "\tRGS will weight events with the variable "
+               << _weightname
+               << " in column " << i << endl;
+          break;
         }
     }
 }
@@ -485,13 +570,13 @@ void RGS::run(vstring&  cutvar,        // Variables defining cuts
            cutvar[i].substr(0, 2) == "\\L" )
         {
           _index.push_back(0); // Not used; so just set to any valid value
-          cout << "begin ladder cut" << endl;
+          //cout << "begin ladder cut" << endl;
         }
       else if (cutvar[i].substr(0, 2) == "\\e" ||
                cutvar[i].substr(0, 2) == "\\E" )
         {
           _index.push_back(0); // Not used; so just set to any valid value
-          cout << "end" << endl;
+          //cout << "end" << endl;
         }
       else
         {
@@ -500,14 +585,15 @@ void RGS::run(vstring&  cutvar,        // Variables defining cuts
             _index.push_back(_varmap[cutvar[i]]); // index map into data
           else
             {
-              cout << "** cut variable " << cutvar[i] << " NOT found" << endl;
+              cout << "** RGS ** Error * cut variable " 
+		   << cutvar[i] << " NOT found" << endl;
               exit(0);
             }
       
-          if ( code == BOX ) cout << "box cut" << endl;
-          cout << i << "\t" << _index.back() << "\t" 
-               << cutvar[i] << "\t" << cutdir[i] 
-               << " cut code " << code << endl;
+          // if ( code == BOX ) cout << "box cut" << endl;
+          // cout << i << "\t" << _index.back() << "\t" 
+          //      << cutvar[i] << "\t" << cutdir[i] 
+          //      << " cut code " << code << endl;
         }
     } 
   if ( DEBUG > 0 )
@@ -728,7 +814,7 @@ void RGS::run(vstring&  cutvar,        // Variables defining cuts
                   // If any cut fails, there is no point continuing.
                   if ( !passed ) break;
 
-                  // IMPORTANT: remember of increment cut number
+                  // IMPORTANT: remember to increment cut number
                   cut++;
                 }
           
@@ -984,7 +1070,7 @@ RGS::save(string filename, double lumi)
 
   // Note: _counts.size() = number of scanned files
   vector<float> count2(_counts.size());
-
+  vector<float> fraction(_counts.size());
 
   // Create branches for each cut. For box and ladder cuts, use fixed
   // length arrays of the appropriate size
@@ -1054,6 +1140,11 @@ RGS::save(string filename, double lumi)
       sprintf(name, "count%d", i);
       sprintf(fmt, "count%d/F", i);
       tree->Branch(name, &count2[i], fmt);
+      cout << "\t" << fmt << endl;
+
+      sprintf(name, "fraction%d", i);
+      sprintf(fmt, "fraction%d/F", i);
+      tree->Branch(name, &fraction[i], fmt);
       cout << "\t" << fmt << endl;
     }
 
@@ -1126,16 +1217,18 @@ RGS::save(string filename, double lumi)
           cut++;
         }
 
-      // store counts
+      // store counts and fraction
       for(unsigned int i=0; i < count2.size(); i++)
-        count2[i] = _counts[i][cutpoint] * lumi;
-      
+	{
+	  count2[i]   = _counts[i][cutpoint] * lumi;
+	  fraction[i] = count2[i]/total(i);
+	}
       file->cd();
       tree->Fill();
     }
   file->cd();
-  tree->AutoSave("SaveSelf");
-  //file->Write("", TObject::kOverwrite);
+  //tree->AutoSave("SaveSelf");
+  file->Write("", TObject::kOverwrite);
   return file;
 }
 
@@ -1222,7 +1315,9 @@ RGS::data(int index, int event)
 //--------------------------------
 
 void
-RGS::_init(vstring& filenames, int start, int numrows)
+RGS::_init(vstring& filenames, int start, int numrows, 
+	   string treename,
+	   string selection)
 {
   _cutdata.clear();
   _cutcode.clear();
@@ -1235,25 +1330,22 @@ RGS::_init(vstring& filenames, int start, int numrows)
 
   _status = rSUCCESS;
 
-  int index=0;
-  bool extend=false;
+  vector<string> var;
   for(int ifile=0; ifile < (int)filenames.size(); ifile++)
     {
-      vector<string> var;
-      if ( ! slurp_table(filenames[ifile], 
-                         var, _cutdata, start, numrows, extend) )
+      var.clear();
+      if ( ! slurpTable(filenames[ifile], 
+			var, _cutdata, start, numrows, 
+			treename, selection) )
         {
           cout << "**Error** unable to read file " << filenames[ifile] << endl;
           _status = rFAILURE;
           return;
         }
-      extend = true;
-      
-      for(int i = 0; i < (int)var.size(); i++)
-        {
-          _varmap[var[i]] = index; // Map variable names to ordinal value
-          _var.push_back(var[i]);  // Map ordinal value to variable name
-          index++;
-        }
+    }
+  for(int i = 0; i < (int)var.size(); i++)
+    {
+      _varmap[var[i]] = i;     // Map variable name to ordinal value
+      _var.push_back(var[i]);  // Map ordinal value to variable name
     }
 }

@@ -5,10 +5,11 @@
 #               background.
 # -----------------------------------------------------------------------------
 #  Created:     28-Apr-2009 Harrison B. Prosper
+#               24-Jan-2015 HBP update to CMSDAS 2015 version of RGS
 # -----------------------------------------------------------------------------
 import os, sys, re
-from ROOT import *
 from string import *
+from ROOT import *
 # -----------------------------------------------------------------------------
 def error(message):
 	print "** %s" % message
@@ -80,7 +81,7 @@ def main():
 	maxcuts = 10000 #  maximum number of cut-points to consider
 
 	print "\t==> create RGS object"
-	rgs = RGS(CUTSFILE, start, maxcuts)
+	rgs = RGS(CUTSFILE, start, maxcuts, "", "Weight")
 	
 	# -------------------------------------------------------------------------
 	#  Add signal and background data to RGS object
@@ -89,11 +90,11 @@ def main():
 	numrows = 0 #  Load all the data from the files
 	
 	print "\t==> load background data"
-	rgs.add(BKGFILE, start, numrows, "Weight")
+	rgs.add(BKGFILE, start, numrows)
 	print
 	
 	print "\t==> load signal data"
-	rgs.add(SIGFILE, start, numrows, "Weight")
+	rgs.add(SIGFILE, start, numrows)
 	print
 	
 	# -------------------------------------------------------------------------
@@ -111,8 +112,8 @@ def main():
 	crgs = TCanvas("fig_rgs", "RGS Distribution", 50, 50, 500, 500)
 
 	nbins= 100
-	bmax = 0.05
-	smax = 0.20
+	bmax = 0.03
+	smax = 0.30
 
 	nh = 5
 	hrgs = [0]*5
@@ -157,7 +158,7 @@ def main():
 			k = i
 			big = signif
 			
-		if i % 100 == 0:
+		if i % 1000 == 0:
 			crgs.cd()
 			hrgs[0].Draw()
 			for j in xrange(1, nh): hrgs[j].Draw("same")
@@ -198,7 +199,7 @@ def main():
 		hrgs[j].Draw("same")
 		hrgs[j].Write("", TObject.kOverwrite)
 	crgs.Update()
-	crgs.SaveAs(".gif")
+	crgs.SaveAs(".png")
 	crgs.Write()
 	gSystem.Sleep(5000)
 # -----------------------------------------------------------------------------
