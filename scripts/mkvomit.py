@@ -177,7 +177,18 @@ def main():
 
 	clist = []
 	for name in classlist:
-		pkg, name, ctype = split(name)
+        t = split(name)
+        if len(t) < 3:
+            print "** the format of plugins/classlist.txt is out of date"
+            print "** run scripts/initTNM.py to update it"
+            sys.exit()
+        elif len(t) == 3:
+            pkg, name, ctype = t
+        else:
+            pkg   = t[0]
+            name  = joinfields(t[1:-1], ' ')
+            ctype = t[-1]
+            
 		headers = findHeaders(name)
 		if len(headers) == 0: continue
 		
