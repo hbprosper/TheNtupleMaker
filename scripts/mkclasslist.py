@@ -49,7 +49,7 @@ def getClass(rec):
 	classname = getclass.findall(rec)
 	if len(classname) == 0: return None
 	classname = strip(classname[0])
-	if classname == "*": return None
+	if classname[-1] == "*": return None
 	return classname
 #------------------------------------------------------------------------------
 def isVector(fullname):
@@ -222,6 +222,7 @@ values.sort()
 cmap = {}
 records = []
 for index, (pkg, classname, ctype) in enumerate(values):
+	if classname[-1] == "*": continue
 	key =  '%s%s' % (pkg, classname)
 	if cmap.has_key(key): continue
 	cmap[key] = 1
