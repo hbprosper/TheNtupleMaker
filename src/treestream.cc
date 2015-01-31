@@ -1644,18 +1644,12 @@ itreestream::str() const
       TLeaf* leafcounter = field.leaf->GetLeafCounter(maxcount);
 
       string lfsym("");
-	  if (field.iscounter) lfsym = string(" *");
+      if (field.iscounter) lfsym = string(" *");
 
-      char record[512];
+      char record[8192];
       if ( leafcounter != 0 )
         {
           // This variable has a leaf counter
- //          sprintf(record, "%5d %s \t/ %s (%d) [%s]\n",
-//                   count,
-//                   field.fullname.c_str(),
-//                   field.leaf->GetTypeName(),
-//                   leafcounter->GetMaximum(),
-//                   leafcounter->GetName());
           sprintf(record, "%5d %s \t/ %s (%d)\n",
                   count,
                   field.fullname.c_str(),
