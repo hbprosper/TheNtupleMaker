@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Description: Create ntuple analyzer using information supplied in a
 #              variables.txt file. (See mkvariables.py).
 #
@@ -17,17 +17,16 @@
 #          14-Dec-2014 HBP - encapsulate variables within eventStream class
 #          17-Dec-2014 HBP - change to eventBuffer since that is a better
 #                            name for this class
-#
-#$Id: mkanalyzer.py,v 1.25 2013/07/11 01:54:22 prosper Exp $
-#------------------------------------------------------------------------------
+#          14-May-2015 HBP - make compatible with latest version of Delphes
+#-----------------------------------------------------------------------------
 import os, sys, re, posixpath
 from string import atof, atoi, replace, lower,\
      upper, joinfields, split, strip, find
 from time import sleep, ctime
 from glob import glob
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # Functions
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 getvno = re.compile(r'[0-9]+$')
 
 def usage():
@@ -54,7 +53,7 @@ def getauthor():
         t = regex.findall(record)
         if len(t) > 0: author = t[0]
     return author
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 AUTHOR = getauthor()
 
 if os.environ.has_key("CMSSW_BASE"):
@@ -83,7 +82,7 @@ if not os.path.exists(TREESTREAM_CPP):
     print "\n** error ** - required file:\n\t%s\n\t\tNOT found!" % \
           TREESTREAM_CPP
     sys.exit(0)
-#------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 LINKDEF = \
   '''
 #include <map>
@@ -123,14 +122,14 @@ LINKDEF = \
 
 MACRO_DECL_H =\
 '''
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // -- Declare variables
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 struct %(Name)sEvent {
 %(vardecl)s
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // --- Structs can be filled by calling fillObjects()
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 %(structdecl)s
 %(structimpl)s
 %(structimplall)s
@@ -145,12 +144,12 @@ MACRO_IMPL_H =\
 TEMPLATE_H =\
 '''#ifndef EVENTBUFFER_H
 #define EVENTBUFFER_H
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 // File:        eventBuffer.h
 // Description: Analyzer header for ntuples created by TheNtupleMaker
 // Created:     %(time)s by mkanalyzer.py
 // Author:      %(author)s
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -166,9 +165,9 @@ TEMPLATE_H =\
 
 struct eventBuffer
 {
-  //---------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
   // --- Declare variables
-  //---------------------------------------------------------------------------
+  //--------------------------------------------------------------------------
 %(vardecl)s
   //--------------------------------------------------------------------------
   // --- Structs can be filled by calling fill(), or individual fill
@@ -286,71 +285,16 @@ struct eventBuffer
 
 
 TEMPLATE_CC =\
-'''//-----------------------------------------------------------------------------
+'''//---------------------------------------------------------------------------
 // File:        %(name)s.cc
-// Description: Analyzer for ntuples created by TheNtupleMaker
-/**
-
-Notes 1
--------
-    1. Use
-    outputFile of(cl.outputfile, ev)
-
-    where "ev" is the eventBuffer, if you wish to skim events to the output
-    file in addition to writing out histograms. The current event is written
-    to the file using
-
-    of.write(event-weight) 
-
-    where "of" is the output file. If omitted, the event-weight is
-    taken to be 1.
-
-    2. Use
-    of.count(cut-name, event-weight)
-    
-    to keep track, in the count histogram, of the number of events passing
-    a given cut. If omitted, the event-weight is taken to be 1. If you want
-    the counts in the count histogram to appear in a given order, specify
-    the order, before entering the event loop, as in the example below
-    
-    of.count("NoCuts", 0)
-    of.count("GoodEvent", 0)
-    of.count("Vertex", 0)
-    of.count("MET", 0)
-    
-Notes 2
--------
-    By default, when an event is written to the output file, all variables are
-    written. However, before the event loop, you can use
-
-    ev.select(objectname)
-
-    e.g.,
-
-    ev.select("GenParticle")
-
-    to declare that you intend to select objects of this type. The
-    selection is done, within the event loop, using
-
-    ev.select(objectname, index)
-
-    e.g.,
-
-    ev.select("GenParticle", 3),
-
-    which specifies that object 3 of GenParticle is to be kept. 
-
-    NB: If you declare your intention to select objects of a given type
-        by calling select(objectname), but subsequently fail to select
-        them using select(objectname, index) then no objects of this
-        type will be kept!
-*/
+// Description: Analyzer for simple ntuples, such as those created by
+//              TheNtupleMaker
 // Created:     %(time)s by mkanalyzer.py
 // Author:      %(author)s
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 #include "tnm.h"
 using namespace std;
-//-----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
   // If you want canvases to be visible during program execution, just
@@ -397,7 +341,6 @@ int main(int argc, char** argv)
       //ev.fillObjects();
 
       // analysis
-
     }
     
   ev.close();
@@ -409,21 +352,22 @@ int main(int argc, char** argv)
 
 PYTEMPLATE =\
 '''#!/usr/bin/env python
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 #  File:        %(name)s.py
-#  Description: Analyzer for ntuples created by TheNtupleMaker
+#  Description: Analyzer for simple ntuples, such as those created by
+#               TheNtupleMaker
 #  Created:     %(time)s by mkanalyzer.py
 #  Author:      %(author)s
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 import os, sys, re
 from tnm import *
 from ROOT import *
-# -----------------------------------------------------------------------------
-# -- Procedures and functions
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# -- Constants, procedures and functions
+# ----------------------------------------------------------------------------
 
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 def main():
 
     cl = commandLine()
@@ -445,40 +389,40 @@ def main():
     # Create file to store histograms
     of = outputFile(cl.outputfilename)
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Define histograms
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     setStyle()
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     # Loop over events
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     
     for entry in xrange(nevents):
         ev.read(entry)
 
         # Uncomment the following line if you wish to copy variables into
         # structs. See the header eventBuffer.h to find out what structs
-        # are available. Alternatively, you can call individual fill functions,
-        # such as, ev.fillElectrons().
+        # are available. Alternatively, you can call individual fill
+        # functions, such as ev.fillJets().
         #ev.fillObjects();
 
         # analysis
         
     ev.close()
     of.close()
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 try:
    main()
 except KeyboardInterrupt:
    print "bye!"
 '''
 
-MAKEFILE = '''#------------------------------------------------------------------------------
+MAKEFILE = '''#----------------------------------------------------------------------------
 # Description: Makefile to build analyzers
 # Created:     %(time)s by mkanalyzer.py
 # Author:      %(author)s
-#------------------------------------------------------------------------------
+#----------------------------------------------------------------------------
 ifndef ROOTSYS
 $(error *** Please set up Root)
 endif
@@ -494,7 +438,6 @@ incdir	:= include
 $(shell mkdir -p tmp)
 $(shell mkdir -p lib)
 
-
 # Set this equal to the @ symbol to suppress display of instructions
 # while make executes
 ifdef verbose
@@ -502,7 +445,6 @@ AT 	:=
 else
 AT	:= @
 endif
-
 
 header  := $(incdir)/tnm.h
 linkdef := $(incdir)/linkdef.h
@@ -536,11 +478,11 @@ sharedlib := $(libdir)/libtnm.so
 #$(error bye!) 
 
 #-----------------------------------------------------------------------
-
 # 	Define which compilers and linkers to use
 
-# 	C++ Compiler
+# 	C++ Compiler/Linker
 CXX\t:= clang++
+LINK\t:= clang++
 CINT\t:= rootcint
 
 # 	Define paths to be searched for C++ header files (#include ....)
@@ -561,7 +503,7 @@ CXXFLAGS:= -c -g -O2 -ansi -Wall -pipe -fPIC -Wno-ignored-qualifiers
 #	C++ Linker
 #   set default path to shared library
 
-LD	:= clang++ -Wl,-rpath,$(PWD)/$(libdir)
+LD	:= $(LINK) -Wl,-rpath,$(PWD)/$(libdir)
 
 OS	:= $(shell uname -s)
 ifeq ($(OS),Darwin)
@@ -675,6 +617,59 @@ For details, please refer to the documentation at:
 
     https://twiki.cern.ch/twiki/bin/viewauth/CMS/TheNtupleMaker
 
+Notes 1
+-------
+    1. Use
+    outputFile of(cl.outputfile, ev)
+
+    where "ev" is the eventBuffer, if you wish to skim events to the output
+    file in addition to writing out histograms. The current event is written
+    to the file using
+
+    of.write(event-weight) 
+
+    where "of" is the output file. If omitted, the event-weight is
+    taken to be 1.
+
+    2. Use
+    of.count(cut-name, event-weight)
+    
+    to keep track, in the count histogram, of the number of events passing
+    a given cut. If omitted, the event-weight is taken to be 1. If you want
+    the counts in the count histogram to appear in a given order, specify
+    the order, before entering the event loop, as in the example below
+    
+    of.count("NoCuts", 0)
+    of.count("GoodEvent", 0)
+    of.count("Vertex", 0)
+    of.count("MET", 0)
+    
+Notes 2
+-------
+    By default, when an event is written to the output file, all variables are
+    written. However, before the event loop, you can use
+
+    ev.select(objectname)
+
+    e.g.,
+
+    ev.select("GenParticle")
+
+    to declare that you intend to select objects of this type. The
+    selection is done, within the event loop, using
+
+    ev.select(objectname, index)
+
+    e.g.,
+
+    ev.select("GenParticle", 3),
+
+    which specifies that object 3 of GenParticle is to be kept. 
+
+    NB: If you declare your intention to select objects of a given type
+        by calling select(objectname), but subsequently fail to select
+        them using select(objectname, index) then no objects of this
+        type will be kept!
 '''
 #------------------------------------------------------------------------------
 def cmp(x, y):
@@ -797,7 +792,7 @@ def main():
 
         # special handling for Delphes
         if find(varname, '_size') > -1:
-            varname = 'n%s' % replace(varname, '_size', '')
+           varname = 'n%s' % replace(varname, '_size', '')
 
         if rtype == "bool":
             rtype = "int"
@@ -810,38 +805,35 @@ def main():
         elif rtype == "uint":
             rtype = "int"			
 
+
+        objname = ''
+        fldname = ''
         # If this is a leaf counter, which happens to have the same name
         # as a struct, then just ignore for now
         if iscounter:
             if structname.has_key(varname):
-                continue
+                varname = '%s_' % varname
+        else:            
+            # Get object and field names
+            t = split(varname,'_')
+            if len(t) > 0:
+                # we have at least two fields in varname
+                key = t[0]
+                if structname.has_key(key):
 
-        # Get object and field names
-        objname = ''
-        fldname = ''
-        t = split(varname,'_')
-        if len(t) > 0:
+                    # This branch potentially belongs to a struct.
+                    objname = key
+                    # Make sure the count for this branch matches that
+                    # of existing struct
+                    if not usednames.has_key(objname):
+                        usednames[objname] = count;
 
-            # we have at least two fields in varname
-
-            key = t[0]
-            if structname.has_key(key):
-
-                # This branch potentially belongs to a struct.
-
-                objname = key
-                # Make sure the count for this branch matches that
-                # of existing struct
-                if not usednames.has_key(objname):
-                    usednames[objname] = count;
-
-                if usednames[objname] == count:
-                    fldname = replace(varname, '%s_' % objname, '')
-                else:
-                    objname = ''
-                    fldname = ''
-
-
+                    if usednames[objname] == count:
+                        fldname = replace(varname, '%s_' % objname, '')
+                    else:
+                        objname = ''
+                        fldname = ''
+                    
         # update map for all variables
         varmap[varname] = [rtype, branchname, count, iscounter]
 
@@ -856,7 +848,6 @@ def main():
                 if not vectormap.has_key(objname): vectormap[objname] = []	
                 vectormap[objname].append((rtype, fldname, varname, count))
                 #print "%s.%s (%s)" % (objname, fldname, count)
-
 
     # Declare all variables
 
@@ -874,8 +865,8 @@ def main():
     for index, varname in enumerate(keys):
         rtype, branchname, count, iscounter = varmap[varname]
         if iscounter:
-            objname = varname[1:] # n<object-name>
-            counters[objname] = branchname
+            #objname = varname[1:] # n<object-name>
+            counters[varname] = branchname
             addb.append('  output->add("%s", %s);' % (branchname, varname))
     addb.append('')
 
@@ -930,11 +921,14 @@ def main():
 
             init.append("    %s\t= std::vector<%s>(%d,0);" % \
                         (varname, rtype, count))
-            
+
             objname = split(varname, '_')[0]
             if not counters.has_key(objname):
-                print "** mkanalyzer.py - object name %s not found" % objname
-                sys.exit(0)
+                objname += "_"
+                if not counters.has_key(objname):
+                    print "** mkanalyzer.py - object name %s not found" % \
+                    objname
+                    sys.exit(0)
             branchname += "[%s]" % counters[objname]
         if not iscounter:
             addb.append('  output->add("%s",' % branchname)

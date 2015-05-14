@@ -16,6 +16,8 @@ gSystem.Load("libtnm.so")
 import warnings
 warnings.filterwarnings( action='ignore', category=RuntimeWarning,
                          message='.*class stack<RooAbsArg\*,deque<RooAbsArg\*> >' )
+warnings.filterwarnings( action='ignore', category=RuntimeWarning,
+                         message='no dictionary' )
 #---------------------------------------------------------------------------
 def nameonly(s):
     import posixpath
