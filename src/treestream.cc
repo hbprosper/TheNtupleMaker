@@ -154,7 +154,7 @@ namespace
       {
         assert(index >= 0);
         FieldBuffer<T>* d = dynamic_cast<FieldBuffer<T>*>(field);
-        if ( d == 0 ) fatal("getinvalue - dynamic_cast failed " + 
+        if ( d == 0 ) fatal("invalue - dynamic_cast failed " + 
                             string(field->branch->GetName()));
         assert(index < (int)d->value.size());
         return d->value[index];
@@ -167,135 +167,135 @@ namespace
   insize(Field* field)
   {
     FieldBuffer<T>* d = dynamic_cast<FieldBuffer<T>*>(field);
-    if ( d == 0 ) fatal("getinvalue - dynamic_cast failed " + 
+    if ( d == 0 ) fatal("invalue - dynamic_cast failed " + 
                         string(field->branch->GetName()));
     return (int)d->value.size();
   }
 
 
-  // For debug only
-  double
-  getinvalue(Field* field, int index=0, int which=0)
-  {
-    if ( which == 0 )
-      return field->leaf->GetValue(index);
-    else
-      {
-        double val = 0;
-        switch(field->iotype)
-          {
-          case 'D':
-            val = invalue<double>(field, index, 1);
-            break;
+  // // For debug only
+  // double
+  // getinvalue(Field* field, int index=0, int which=0)
+  // {
+  //   if ( which == 0 )
+  //     return field->leaf->GetValue(index);
+  //   else
+  //     {
+  //       double val = 0;
+  //       switch(field->iotype)
+  //         {
+  //         case 'D':
+  //           val = invalue<double>(field, index, 1);
+  //           break;
 	    
-          case 'F':
-            val = static_cast<double>(invalue<float>(field, index, 1));
-            break;
+  //         case 'F':
+  //           val = static_cast<double>(invalue<float>(field, index, 1));
+  //           break;
 	      
-          case 'L':
-            val = static_cast<double>(invalue<long>(field, index, 1));
-            break;
+  //         case 'L':
+  //           val = static_cast<double>(invalue<long>(field, index, 1));
+  //           break;
 
-          case 'I':
-            val = static_cast<double>(invalue<int>(field, index, 1));
-            break;
+  //         case 'I':
+  //           val = static_cast<double>(invalue<int>(field, index, 1));
+  //           break;
 
-          case 'S':
-            val = static_cast<double>(invalue<short>(field, index, 1));
-            break;
+  //         case 'S':
+  //           val = static_cast<double>(invalue<short>(field, index, 1));
+  //           break;
 	    
-          case 'B':
-            val = static_cast<double>(invalue<char>(field, index, 1));
-            break;
+  //         case 'B':
+  //           val = static_cast<double>(invalue<char>(field, index, 1));
+  //           break;
 
-          case 'O':
-            val = static_cast<double>(invalue<bool>(field, index, 1));
-            break;
+  //         case 'O':
+  //           val = static_cast<double>(invalue<bool>(field, index, 1));
+  //           break;
 
-          case 'l':
-            val = static_cast<double>(invalue<unsigned long>(field, index, 1));
-            break;
+  //         case 'l':
+  //           val = static_cast<double>(invalue<unsigned long>(field, index, 1));
+  //           break;
 	    
-          case 'i':
-            val = static_cast<double>(invalue<unsigned int>(field, index, 1));
-            break;
+  //         case 'i':
+  //           val = static_cast<double>(invalue<unsigned int>(field, index, 1));
+  //           break;
 
-          case 's':
-            val=static_cast<double>(invalue<unsigned short>(field, index, 1));
-            break;
+  //         case 's':
+  //           val=static_cast<double>(invalue<unsigned short>(field, index, 1));
+  //           break;
 
-          case 'b':
-            val = static_cast<double>(invalue<unsigned char>(field, index, 1));
-            break;
+  //         case 'b':
+  //           val = static_cast<double>(invalue<unsigned char>(field, index, 1));
+  //           break;
 
-          default:
-            val = invalue<double>(field, index, 1);
-            break;
-          }
-        return val;
-      }
-  }
+  //         default:
+  //           val = invalue<double>(field, index, 1);
+  //           break;
+  //         }
+  //       return val;
+  //     }
+  // }
 
-  int
-  getinsize(Field* field)
-  {
-    int size = 0;
-    switch(field->iotype)
-      {
-      case 'D':
-        size = insize<double>(field);
-        break;
+  // int
+  // getinsize(Field* field)
+  // {
+  //   int size = 0;
+  //   switch(field->iotype)
+  //     {
+  //     case 'D':
+  //       size = insize<double>(field);
+  //       break;
         
-      case 'F':
-        size = insize<float>(field);
-        break;
+  //     case 'F':
+  //       size = insize<float>(field);
+  //       break;
         
-      case 'L':
-        size = insize<long>(field);
-        break;
+  //     case 'L':
+  //       size = insize<long>(field);
+  //       break;
 
-      case 'I':
-        size = insize<int>(field);
-        break;
+  //     case 'I':
+  //       size = insize<int>(field);
+  //       break;
 
-      case 'S':
-        size = insize<short>(field);
-        break;
+  //     case 'S':
+  //       size = insize<short>(field);
+  //       break;
 
-      case 'B':
-        size = insize<char>(field);
-        break;
+  //     case 'B':
+  //       size = insize<char>(field);
+  //       break;
 
-      case 'O':
-        size = insize<bool>(field);
-        break;
+  //     case 'O':
+  //       size = insize<bool>(field);
+  //       break;
 
-      case 'C':
-        size = insize<string>(field);
-        break;
+  //     case 'C':
+  //       size = insize<string>(field);
+  //       break;
 
-      case 'l':
-        size = insize<unsigned long>(field);
-        break;
+  //     case 'l':
+  //       size = insize<unsigned long>(field);
+  //       break;
         
-      case 'i':
-        size = insize<unsigned int>(field);
-        break;
+  //     case 'i':
+  //       size = insize<unsigned int>(field);
+  //       break;
 
-      case 's':
-        size = insize<unsigned short>(field);
-        break;
+  //     case 's':
+  //       size = insize<unsigned short>(field);
+  //       break;
 
-      case 'b':
-        size = insize<unsigned char>(field);
-        break;
+  //     case 'b':
+  //       size = insize<unsigned char>(field);
+  //       break;
 
-      default:
-        size = insize<double>(field);
-        break;
-      }
-    return size;
-  }
+  //     default:
+  //       size = insize<double>(field);
+  //       break;
+  //     }
+  //   return size;
+  // }
 
   // ----------------------------------------------------------------------
   // return value of given external buffer
