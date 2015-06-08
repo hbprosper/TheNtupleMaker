@@ -19,6 +19,7 @@
 #                            name for this class
 #          14-May-2015 HBP - make compatible with latest version of Delphes
 #          08-Jun-2015 HBP - fix makefile (define sharedlib)
+#                            fix counter bug that crawled in unnoticed
 #-----------------------------------------------------------------------------
 import os, sys, re, posixpath
 from string import atof, atoi, replace, lower,\
@@ -536,7 +537,7 @@ ifeq ($(OS),Darwin)
     LDEXT       := .dylib
 else
     LDSHARED	:= $(LD) -shared
-    LDEXT       := .os
+    LDEXT       := .so
 endif
 
 #	Linker flags
@@ -592,7 +593,7 @@ $(objects)	: $(tmpdir)/%(percent)s.o	: $(srcdir)/%(percent)s.cc
 $(cintsrc)  : $(header) $(linkdef)
 \t@echo "---> Generating dictionary `basename $@`"
 \t$(AT)$(CINT) -f $@ -c -I. -Iinclude -I$(ROOTSYS)/include $+
-\t$(AT)mv $(srcdir)/*.pcm $(libdir)
+\t$(AT)find $(srcdir) -name "*.pcm" -exec mv {} $(libdir) \;
 
 # 	Define clean up rules
 clean   :
@@ -938,14 +939,18 @@ def main():
 
             init.append("    %s\t= std::vector<%s>(%d,0);" % \
                         (varname, rtype, count))
-
+            # make a concerted effort to identify the counter
+            # variable name for this object
             objname = split(varname, '_')[0]
             if not counters.has_key(objname):
-                objname += "_"
-                if not counters.has_key(objname):
-                    print "** mkanalyzer.py - object name %s not found" % \
-                    objname
-                    sys.exit(0)
+                key = 'n' + objname
+                if not counters.has_key(key):
+                    key = objname + "_"
+                    if not counters.has_key(key):
+                        print "** mkanalyzer.py - object name %s not found" % \
+                            key
+                        sys.exit(0)
+                objname = key
             branchname += "[%s]" % counters[objname]
         if not iscounter:
             addb.append('  output->add("%s",' % branchname)
