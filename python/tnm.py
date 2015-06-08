@@ -9,7 +9,7 @@ from string import split, strip, atoi, atof, replace, joinfields
 from math import *
 from ROOT import *
 #-----------------------------------------------------------------------------
-gSystem.Load("libtnm.so")
+gSystem.Load("libtnm")
 #-----------------------------------------------------------------------------
 # Hack to suppress harmless warning
 # see: https://root.cern.ch/phpBB3/viewtopic.php?f=14&t=17682

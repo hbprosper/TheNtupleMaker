@@ -1,3 +1,17 @@
+v6_1_1 Jun. 08 2015
+-------------------
+	1. Fix a problem with the analyzer Makefile.
+
+v6_1_0 Jun. 06 2015
+-------------------
+	1. Make mkanalyzer compatible with Root 6. Change analyzer makefile
+	so that the pre-compiled modules are moved to the lib directory.
+	2. Use ".dylib" extension for Mac in analyzer makefile
+	3. Remove ".so" extension in gSystem.Load('libtnm') so that correct
+	shared library will be called.
+	4. In non-CMSSW mode, assume that the treestream module is installed
+	in $EXTERNAL.
+	
 v6_0_6 Jun. 05 2015
 -------------------
 	1. Add SUSY labels to particleName in tnm.cc
