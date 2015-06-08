@@ -43,12 +43,11 @@ GenParticleHelper::analyzeEvent()
   
   // Get genparticles:
   edm::Handle<GenParticleCollection> handle;
-  // For now, hard-code getByLabel
-  event->getByLabel("genParticles", handle);
+  event->getByLabel(labelname, handle);
   if (!handle.isValid())
     throw edm::Exception(edm::errors::Configuration,
                          "\nGenParticleHelper - " 
-                         "GenParticle handle is invalid");
+                         "getByLabel("+labelname+") failed");
 
   // Write a unique string for each genparticle
   // keeping only particles with status=3
@@ -222,6 +221,18 @@ double   GenParticleHelper::pt()     const { return object->pt(); }
 double   GenParticleHelper::eta()    const { return object->eta(); }
 double   GenParticleHelper::phi()    const { return object->phi(); }
 double   GenParticleHelper::mass()   const { return object->mass(); }
+
+double   GenParticleHelper::mothercharge(int id)   const 
+{ return object->motherRef(id)->charge(); }
+
+double   GenParticleHelper::motherpdgId(int id)   const 
+{ return object->motherRef(id)->pdgId(); }
+
+double   GenParticleHelper::motherstatus(int id)   const 
+{ return object->motherRef(id)->status(); }
+
+double   GenParticleHelper::motherlongLived(int id)   const 
+{ return object->motherRef(id)->longLived(); }
 
 int 
 GenParticleHelper::firstMother() const

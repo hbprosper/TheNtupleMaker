@@ -61,6 +61,14 @@ namespace reco
     int firstDaughter() const;
     ///
     int lastDaughter()  const;
+    ///
+    double   mothercharge(int id=0)   const; 
+    ///
+    double   motherpdgId(int id=0)   const;
+    ///
+    double   motherstatus(int id=0)   const; 
+    ///
+    double   motherlongLived(int id=0)   const;
     
   private:
     // Filled once per cached object
