@@ -147,7 +147,11 @@ for index, (pkg, name, ctype) in enumerate(cnames):
 	#print name, headers
 pkgs = nmap.keys()
 pkgs.sort()
-#sys.exit()
+# ------------------------------------
+# delete existing plugins first
+# ------------------------------------
+os.system("rm -rf plugins/plugins*.cc")
+
 #------------------------------------------------------------------------------
 names  = {'time': ctime()}
 npmax  = NPLUGINS
