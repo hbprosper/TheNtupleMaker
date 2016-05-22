@@ -11,6 +11,8 @@
 #          18-Apr-2012 HBP use inclusionlist.txt to include specific
 #                      classes not picked up automatically
 #          11-Dec-2014 HBP Adapt to CMSSW_7_2_3
+#          18-May-2016 HBP Adapt to public data. if classlist_default.txt 
+#                      exists in plugins, then use this list of classes. 
 #$Id: mkclasslist.py,v 1.23 2013/07/05 21:01:54 prosper Exp $
 #------------------------------------------------------------------------------
 import os, sys, re
@@ -24,7 +26,7 @@ from PhysicsTools.TheNtupleMaker.ReflexLib import findHeaders, getFullname
 from PhysicsTools.TheNtupleMaker.classmap import ClassToHeaderMap
 #------------------------------------------------------------------------------
 PACKAGE, SUBPACKAGE, LOCALBASE, BASE, VERSION = cmsswProject()
-cwd = os.path.basename(os.environ['PWD'])
+PWD = os.environ['PWD']
 if PACKAGE == None:
 	print "\n\t** Must be run from package directory"
 	sys.exit(0)
@@ -32,7 +34,8 @@ if PACKAGE == None:
 # Extract getByLabel strings using a non-greedy search
 getclass  = re.compile(r'(?<=edm::Wrapper\<).+(?=\> *")')
 getfields = re.compile(r'(?<=")[^ ]*?(?=")')
-isvector  = re.compile(r'(?<=^std::vector\<).*(?=\>)')
+isvector  = re.compile(r'(?<=^std::vector\<).*(?=\>)|'\
+			       '(?<=^vector\<).*(?=\>)')
 isvoid    = re.compile(r'\(void\)')
 isint     = re.compile(r'\((unsigned )?(long |short )?int\)')
 skip = re.compile('edm::helpers|edm::refhelper|TemplatedSecondary')
@@ -69,7 +72,6 @@ edm::Ptr
 edm::Ref
 edm::FwdRef
 edm::PtrVector
-edm::SortedCollection
 edm::EDCollection
 edm::DetSet
 edm::AssociationMap
@@ -122,37 +124,45 @@ argv = sys.argv[1:]
 argc = len(argv)
 
 # Construct list of directories to be searched from 
-# the contents of classmap.py
+# the contents of classmap.py, but if classlist_default.txt
+# exists, use the classes list therein
 
-values = ClassToHeaderMap.values()
-values.sort()
-records = {}
-for value in values:
-	t = split(value, "/interface/")
-	records[t[0]] = 0
-records = records.keys()
-records.sort()
+classlist_default = '%s/plugins/classlist_default.txt' % PWD
+if os.path.exists(classlist_default):
+	print "\n\t=== using classes in plugins/classlist_default.txt ===\n"
+	wclasses = map(strip, open(classlist_default).readlines())
+else:
+	values = ClassToHeaderMap.values()
+	values.sort()
 
-# Get list of classes from classes_def*.xml
-# Assume that those bounded by Wrappers are the
-# ones that can potentially be stored in a Root file
+	records = {}
+	for value in values:
+		t = split(value, "/interface/")
+		records[t[0]] = 0
+	records = records.keys()
+	records.sort()
 
-wclassesmap = {}
-count = 0
-for record in records:
-	xmlfiles = glob("%s/%s/src/classes_def*.xml" % (LOCALBASE, record))
-	xmlfiles += glob("%s/%s/src/classes_def*.xml" % (BASE, record))
-	for xmlfile in xmlfiles:
-		recs = os.popen('grep "edm::Wrapper" %s' % xmlfile).readlines()
-		for rec in recs:
-			classname = getClass(rec)
-			if classname == None: continue
-			if not wclassesmap.has_key(classname):
-				wclassesmap[classname] = 1
-				count += 1
-				#print "\t%5d ==> %s" % (count, classname)
-wclasses = wclassesmap.keys()
-#print
+	# Get list of classes from classes_def*.xml
+	# Assume that those bounded by Wrappers are the
+	# ones that can potentially be stored in a Root file
+
+	wclassesmap = {}
+	count = 0
+	for record in records:
+		xmlfiles = glob("%s/%s/src/classes_def*.xml" % \
+					(LOCALBASE, record))
+		xmlfiles += glob("%s/%s/src/classes_def*.xml" % \
+					 (BASE, record))
+		for xmlfile in xmlfiles:
+			recs = os.popen('grep "edm::Wrapper" %s' % \
+						xmlfile).readlines()
+			for rec in recs:
+				classname = getClass(rec)
+				if classname == None: continue
+				if not wclassesmap.has_key(classname):
+					wclassesmap[classname] = 1
+					count += 1
+	wclasses = wclassesmap.keys()
 
 # ---------------------------------------
 # Add classes listed in inclusionlist.txt
@@ -174,7 +184,7 @@ for classname in wclasses:
 	# Get actual name of classes
 	fullname = getFullname(classname)
 	fullname = fixName(fullname)
-	
+
 	# Skip a bunch of complicated stuff...
 
 	if skipme.match(fullname) != None:
@@ -195,7 +205,9 @@ for classname in wclasses:
 
 	# Since classname may be a vector, check it first before the fullname
 	yes, name = isVector(classname)
-	if not yes:
+
+	no = not yes
+	if no:
 		yes, name = isVector(fullname)
 	if yes:
 		ctype = 'collection'
@@ -203,10 +215,11 @@ for classname in wclasses:
 		tname[name] = (pkg, name, ctype)
 
 	# If this is not a collection modeled as a
-	# STL vector, skip it
-	elif find(classname, "Collection") > -1:
-		continue
-	
+	# STL vector, skip it : CHECK IF THIS WORKS
+	elif find(classname, "SortedCollection") > -1:
+		ctype = 'collection'
+		name = fixName(name)
+		tname[name] = (pkg, name, ctype)	
 	else:
 		# This is not a  vector type. keep it only
 		# if "name" not yet in map
