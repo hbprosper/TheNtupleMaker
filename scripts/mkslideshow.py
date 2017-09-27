@@ -423,7 +423,7 @@ def main():
         elif option == "-a":
             author = value
 
-    context = {'date':    "%s<br>" % ctime(time()),
+    context = {'date':    "%s<br>" % ctime(),
                'title':   title,
                'author':  "%s<br>" % author,
                'tab':     3 * TAB,

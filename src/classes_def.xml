@@ -1,16 +1,7 @@
 <lcgdict>
-   <class name="std::vector<TVector3>"/>
-   <class name="std::vector<TLorentzVector>"/>
-   <class name="std::vector<std::vector<double> >"/>
-   <class name="std::vector<TH1F*>"/>
-   <class name="std::vector<TH1*>"/>
    <class name="std::vector<kit::MatchedPair>"/>
    <class name="std::vector<kit::PtThing>"/>
    <class name="std::vector<bool>"/>
-   <class name="std::map<std::string, std::vector<float>* >"/>
-   <class name="std::map<std::string, std::vector<float> >"/>
-   <class name="std::map<std::string, std::vector<double> >"/>
-   <class name="std::map<std::string, std::vector<double>* >"/>
 
    <class name="Connection"/>
    <class name="Slot"/>

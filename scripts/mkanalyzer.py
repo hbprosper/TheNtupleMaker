@@ -20,16 +20,22 @@
 #          14-May-2015 HBP - make compatible with latest version of Delphes
 #          08-Jun-2015 HBP - fix makefile (define sharedlib)
 #                            fix counter bug that crawled in unnoticed
+#          06-May-2017 HBP - make it possible to use vectors as intrinsic
+#                            types
+#          26-Sep-2017 HBP - make content of linkdef.h conditional on ROOT 
+#                            version
 #-----------------------------------------------------------------------------
 import os, sys, re, posixpath
 from string import atof, atoi, replace, lower,\
      upper, joinfields, split, strip, find
 from time import sleep, ctime
 from glob import glob
+from ROOT import gROOT
 #-----------------------------------------------------------------------------
 # Functions
 #-----------------------------------------------------------------------------
 getvno = re.compile(r'[0-9]+$')
+simpletype = re.compile('^(int|float|double|bool|long|long64|short|string)$')
 
 def usage():
     print '''
@@ -207,10 +213,16 @@ struct eventBuffer
 %(selectimpl)s
   //--------------------------------------------------------------------------
   // A read-only buffer 
-  eventBuffer() : input(0), output(0) {}
+  eventBuffer()
+  : input(0),
+    output(0)
+%(vinit)s
+  {}
+
   eventBuffer(itreestream& stream)
   : input(&stream),
     output(0)
+%(vinit)s
   {
     if ( !input->good() ) 
       {
@@ -227,6 +239,7 @@ struct eventBuffer
   eventBuffer(otreestream& stream)
   : input(0),
     output(&stream)
+%(vinit)s
   {
     initBuffers();
 
@@ -248,6 +261,8 @@ struct eventBuffer
       }
     input->read(entry);
 
+    // map pointers to references
+%(ptrtoref)s
     // clear indexmap
     for(std::map<std::string, std::vector<int> >::iterator
     item=indexmap.begin(); 
@@ -747,6 +762,8 @@ def main():
     # and get list of potential struct names (first field of
     # varname.
     # --------------------------------------------------------------------
+    # get ROOT version
+    rversion = gROOT.GetVersion()[0]
     records = records[start:]
     tokens = []
     tmpmap = {}
@@ -756,10 +773,9 @@ def main():
 
         # split record into its fields
         # varname = variable name as determined by mkvariables.py
-
         tokens.append(split(record, '/'))
         rtype, branchname, varname, count = tokens[-1]
-
+            
         # varname should have the format
         # <objname>_<field-name>
         t = split(varname,'_')
@@ -783,21 +799,27 @@ def main():
 
     for index, (rtype, branchname, varname, count) in enumerate(tokens):
 
+        # if rtype is indexed with an asterisk, this indicates that this
+        # type is intrinsically a vector type to be handled directly by
+        # Root.
+        if rtype[-1] == '*':
+            intrinsicVtype = True
+            rtype = rtype[:-1]
+        else:
+            intrinsicVtype = False
+        
         # Check if current variable is a leaf counter (flagged with an "*")
-
         t = split(count)
         count = atoi(t[0]) # Change type to an integer
         iscounter = t[-1] == "*"
 
         # make sure names are unique. If they aren't bail out!
-
         if varmap.has_key(varname):
             print "** error ** duplicate variable name %s; "\
             "please fix variables.txt by hand"
             sys.exit(0)
 
         # do something about annoying types
-
         if find(varname, '[') > -1 and count > 1:
             print "** warning: access to %s[%d] "\
                   "must be hand-coded" % (branchname, count)
@@ -853,7 +875,7 @@ def main():
                         fldname = ''
                     
         # update map for all variables
-        varmap[varname] = [rtype, branchname, count, iscounter]
+        varmap[varname] = [rtype, branchname, count, iscounter, intrinsicVtype]
 
         # vector types must have the same object name and a max count > 1
         if count > 1:
@@ -877,11 +899,13 @@ def main():
     setb      = []
     addb      = []
     impl      = []
-
+    vinit     = []
+    ptrtoref  = []
+    
     # first create counters
     counters = {}
     for index, varname in enumerate(keys):
-        rtype, branchname, count, iscounter = varmap[varname]
+        rtype, branchname, count, iscounter, intrinsicVtype = varmap[varname]
         if iscounter:
             #objname = varname[1:] # n<object-name>
             counters[varname] = branchname
@@ -889,7 +913,7 @@ def main():
     addb.append('')
 
     for index, varname in enumerate(keys):
-        rtype, branchname, count, iscounter = varmap[varname]
+        rtype, branchname, count, iscounter, intrinsicVtype = varmap[varname]
 
         if macroMode:
 
@@ -927,31 +951,48 @@ def main():
                 impl.append('')
 
 
-
         setb.append('  input->select("%s",' % branchname)
-        setb.append('                %s);'  % varname)
-
+        if intrinsicVtype:        
+            setb.append('                %s, true);'  % varname)
+        else:
+            setb.append('                %s);'  % varname)
+            
+        add_saveObjects = True
+        
         if count == 1:
             declare.append("  %s\t%s;" % (rtype, varname))
         else:
+            # --------------------------------------
             # this is a vector
-            declarevec.append("  std::vector<%s>\t%s;" % (rtype, varname))
-
-            init.append("    %s\t= std::vector<%s>(%d,0);" % \
-                        (varname, rtype, count))
-            # make a concerted effort to identify the counter
-            # variable name for this object
-            objname = split(varname, '_')[0]
-            if not counters.has_key(objname):
-                key = 'n' + objname
-                if not counters.has_key(key):
-                    key = objname + "_"
+            # --------------------------------------
+            if intrinsicVtype:
+                declarevec.append("  // intrinsic vector type")
+                declarevec.append("  std::vector<%s> \t%s;" %(rtype, varname))
+                declarevec.append("")
+                
+                add_saveObjects = False # SAVE NOT YET IMPLEMENTED
+            else:
+                
+                declarevec.append("  std::vector<%s>\t%s;" % (rtype, varname))
+                init.append("    %s\t= std::vector<%s>(%d,0);" % \
+                                (varname, rtype, count))
+                        
+                # first make a concerted effort to identify the counter
+                # variable name for this object
+                objname = split(varname, '_')[0]
+                if not counters.has_key(objname):
+                    key = 'n' + objname
                     if not counters.has_key(key):
-                        print "** mkanalyzer.py - object name %s not found" % \
-                            key
-                        sys.exit(0)
-                objname = key
-            branchname += "[%s]" % counters[objname]
+                        key = objname + "_"
+                        if not counters.has_key(key):
+                            print '** mkanalyzer.py - '\
+                              'unable to find counter for '\
+                              'object %s' % objname
+                            add_saveObjects = False
+                        else:
+                            objname = key
+                            branchname += "[%s]" % counters[objname]
+                        
         if not iscounter:
             addb.append('  output->add("%s",' % branchname)
             addb.append('              %s);'  % varname)
@@ -960,6 +1001,10 @@ def main():
     # Create structs for vector variables
 
     pragma = []
+    if rversion == '5':
+        pragma.append('#pragma link C++ class vector<vector<int> >;')
+        pragma.append('#pragma link C++ class vector<vector<float> >;')
+        pragma.append('#pragma link C++ class vector<vector<double> >;')
     keys = vectormap.keys()
     keys.sort()
     structvec  = []	
@@ -971,10 +1016,11 @@ def main():
     selectimpl = []
 
     selectimpl.append('  // Select objects for which the select'\
-                      ' function was called')
+      ' function was called')
     selectimpl.append('  void saveObjects()')
     selectimpl.append('  {')
-    selectimpl.append('    int n = 0;')
+    if add_saveObjects:        
+        selectimpl.append('    int n = 0;')
     structimplall.append('  void fillObjects()')
     structimplall.append('  {')
 
@@ -990,25 +1036,26 @@ def main():
         structimpl.append('    for(unsigned int i=0; i < %s.size(); ++i)' % \
                           objname)
         structimpl.append('      {')
-
-        selectimpl.append('')
-        selectimpl.append('    n = 0;')
-        selectimpl.append('    try')
-        selectimpl.append('      {')
-        selectimpl.append('         n = indexmap["%s"].size();' % objname)
-        selectimpl.append('      }')
-        selectimpl.append('    catch (...)')
-        selectimpl.append('      {}')
-        selectimpl.append('    if ( n > 0 )')
-        selectimpl.append('      {')
-        selectimpl.append('        std::vector<int>& '\
-                          'index = indexmap["%s"];' % objname)
-        selectimpl.append('        for(int i=0; i < n; ++i)')
-        selectimpl.append('          {')
-        selectimpl.append('            int j = index[i];')
+        if add_saveObjects:
+            selectimpl.append('')
+            selectimpl.append('    n = 0;')
+            selectimpl.append('    try')
+            selectimpl.append('      {')
+            selectimpl.append('         n = indexmap["%s"].size();' % objname)
+            selectimpl.append('      }')
+            selectimpl.append('    catch (...)')
+            selectimpl.append('      {}')
+            selectimpl.append('    if ( n > 0 )')
+            selectimpl.append('      {')
+            selectimpl.append('        std::vector<int>& '\
+                        'index = indexmap["%s"];' % objname)
+            selectimpl.append('        for(int i=0; i < n; ++i)')
+            selectimpl.append('          {')
+            selectimpl.append('            int j = index[i];')
+            
         structdecl.append('  struct %s_s' % objname)
         structdecl.append('  {')
-
+            
         for rtype, fldname, varname, count in values:
             # treat bools as ints
             if rtype == "bool":
@@ -1023,16 +1070,16 @@ def main():
                                                               fldname,
                                                               cast,
                                                               varname))
-
-            selectimpl.append('            %s[i]\t= %s[j];' % (varname,
-                                                             varname))
+            if add_saveObjects:
+                selectimpl.append('            %s[i]\t= %s[j];' % (varname,
+                                                                varname))
 
         structvec.append('  std::vector<eventBuffer::%s_s> %s;' % \
                              (objname, objname))
         init.append('    %s\t= std::vector<eventBuffer::%s_s>(%d);' % (objname,
                                                                        objname,
                                                                        count))
-        pragma.append('#pragma link C++ class eventBuffer::%s_s;' % objname)
+        pragma.append('')        
         pragma.append('#pragma link C++ class vector<eventBuffer::%s_s>;' % \
                           objname)
         pragma.append('')
@@ -1053,11 +1100,14 @@ def main():
         
         structimpl.append('      }')
         structimpl.append('  }\n')  # end of fill<object>s()
-        selectimpl.append('          }')
-        selectimpl.append('        n%s = n;' % objname)
-        selectimpl.append('      }')
+
+        if add_saveObjects:
+            selectimpl.append('          }')
+            selectimpl.append('        n%s = n;' % objname)
+            selectimpl.append('      }')
 
     structimplall.append('  }')  # end of fillObjects()
+
     selectimpl.append('  }')  # end of saveObjects()
 
     # Write out files
@@ -1133,6 +1183,8 @@ def main():
              'name': filename,
              'time': ctime(),
              'author': AUTHOR,
+             'vinit':      join("", vinit, "\n"),
+             'ptrtoref':   join("", ptrtoref, "\n"),
              'vardecl':    join("", declarevec, "\n"),
              'init':       join("", init, "\n"),
              'setb':       join("  ", setb, "\n"),

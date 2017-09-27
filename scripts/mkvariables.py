@@ -78,6 +78,11 @@ patname  = re.compile('(?<=pat)[a-z]+[1-9]*')
 reconame = re.compile('(?<=reco)[a-z]+[1-9]*')
 genname  = re.compile('^(gen[a-z]+|edm[a-z]+)')
 countname= re.compile('(?<=^n)(pat|reco)')
+unsqueeze= re.compile('[>](?=[>])')
+validtype= re.compile('^(int|float|double|bool|long|'\
+                          'long64|size_t|short|string|'\
+                          'vector<int> )$')
+stltype  = re.compile('string|vector')                          
 # ----------------------------------------------------------------------------
 def main():
 
@@ -95,7 +100,7 @@ def main():
         sys.exit(0)
     # list branches and leaves
     stream.ls()
-
+    
     # write out variables.txt after scanning ntuple listing
     print
     print "==> file: %s" % filename
@@ -114,12 +119,17 @@ def main():
     # get ntuple listing
     dupname = {} # to keep track of duplicate names
 
-    records = map(split, split(stream.str(),'\n'))
-    for x in records:
-
+    # take care of vector<vector<...> >
+    record  = replace(stream.str(), '> ', '>')
+    records = map(split, split(record,'\n'))
+    
+    for x in records:       
         # skip junk
         if len(x) == 0: continue
         if x[0] in ["Tree", "Number", ""]: continue
+
+        # take care of vector<vector<...> >
+        x[-1] = unsqueeze.sub('> ', x[-1])
 
         # Fields:
         # .. branch / type [maximum count [*]]
@@ -135,26 +145,32 @@ def main():
             a, branch, c, btype, maxcount = x
             maxcount = 1 + 2*atoi(maxcount[1:-1])
         else:
-            print "\t**hmmm...not sure what to do with:\n\t%s\n\tchoi!" % x
-            sys.exit(0)
-
+            print "\t**yikes! what is this?:\n\t%s\n\tignoring it!\n"% x[-1]
+            continue
+        
         # get branch type in C++ form (not, e.g.,  Double_t)
         btype = replace(lower(btype), "_t", "")
+        # fix some types
+        if btype == 'uint': btype = 'size_t'
+            
         vtype = getvtype.findall(btype)
         if len(vtype) == 1:
             btype = vtype[0] # vector type
             maxcount = 100   # default maximum count for vectors
+            ptrtype = '*'
+        else:
+            ptrtype = ''
+            
+        # check for valid type
+        if not validtype.match(btype):
+            print "\t**skipping:\t%s" % joinfields(x, ' ')
+            continue
 
-## 		# fix a few types
-## 		if btype[:-2] in ["32", "64"]:
-## 			btype = btype[:-2]
-## 		elif btype == "bool":
-## 			btype = "int"
-## 		elif btype == "uchar":
-## 			btype = "int"
-## 		elif btype == "uint":
-## 			btype = "int"
-
+        # fix a few types
+        stype = stltype.match(btype)
+        if stype:
+            btype = stltype.sub('std::%s' % stype.group(), btype)
+            
         # If this is leaf counter, add " *" to end of record
         if iscounter:
             lc = " *"
@@ -165,9 +181,8 @@ def main():
         # but take care of duplicate names
         t = split(branch, '.')
         bname = t[0]
-
+        
         if len(t) > 1:
-            #t[0] = lower(t[0])			
             a = patname.findall(t[0])
             if len(a) == 0:
                 a = reconame.findall(t[0])
@@ -177,9 +192,7 @@ def main():
                 t[0] = a[0]
         else:
             if len(countname.findall(t[0])) > 0:
-                #t[0] = split(lower(countname.sub("", t[0])),'_')[0]
                 t[0] = split(countname.sub("", t[0]),'_')[0]
-        #t[0] = replace(t[0], 'helper', '')
 
         # check for duplicate names
         key = t[0]
@@ -195,10 +208,13 @@ def main():
         # first strip away namespace
         t[0] = namespace.sub("", t[0])
         name = joinfields(t, '_')
-        #print "%s\t%s" % (t[0], bname)
+        name = replace(name, '__', '_')
+        if name[-1] == '_': name = name[:-1]
 
+        
         # write out info for current branch/leaf
-        record = "%s/%s/%s/%d %s\n" % (btype, branch, name, maxcount, lc)
+        record = "%s%s/%s/%s/%d %s\n" % (btype, ptrtype,
+                                           branch, name, maxcount, lc)
         out.write(record)
 # ----------------------------------------------------------------------------
 main()

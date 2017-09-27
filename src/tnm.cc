@@ -90,7 +90,11 @@ outputFile::outputFile(std::string filename)
 {
   file_->cd();
   hist_ = new TH1F("counts", "", 1,0,1);
+#if ROOT_VERSION_CODE > ROOT_VERSION(6,0,0)
+  hist_->SetCanExtend(1); // Root 6
+#else
   hist_->SetBit(TH1::kCanRebin);
+#endif
   hist_->SetStats(0);
 }
 
@@ -114,7 +118,11 @@ outputFile::outputFile(std::string filename,
 	    << filename_ << std::endl;
   file_->cd();
   hist_ = new TH1F("counts", "", 1,0,1);
+#if ROOT_VERSION_CODE > ROOT_VERSION(6,0,0)
+  hist_->SetCanExtend(1); // Root 6
+#else
   hist_->SetBit(TH1::kCanRebin);
+#endif
   hist_->SetStats(0);
 }
 

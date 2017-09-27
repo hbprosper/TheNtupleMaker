@@ -1,5 +1,3 @@
-//$Revision: 1.9 $
-
 #include "PhysicsTools/TheNtupleMaker/interface/Connection.h"
 #include "PhysicsTools/TheNtupleMaker/interface/Slot.h"
 #include "PhysicsTools/TheNtupleMaker/interface/pdg.h"
@@ -14,10 +12,6 @@
 #include "PhysicsTools/TheNtupleMaker/interface/ClassFunction.h"
 #include "PhysicsTools/TheNtupleMaker/interface/ClassMembers.h"
 //-----------------------------------------------------------------------------
-//#include "FWCore/Framework/interface/Event.h"
-//#include "FWCore/ParameterSet/interface/ParameterSet.h"
-//#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
-//-----------------------------------------------------------------------------
 #include "TLorentzVector.h"
 #include "TH1F.h"
 //-----------------------------------------------------------------------------
@@ -26,25 +20,13 @@
 #include <fstream>
 #include "PhysicsTools/TheNtupleMaker/interface/L1GlobalTriggerReadoutRecordHelper.h"
 #include "PhysicsTools/TheNtupleMaker/interface/GenEventInfoProductHelper.h"
-
-
 //-----------------------------------------------------------------------------
 
 // Need explicit instantiations of template classes and functions
 
 namespace {
-  std::vector<TVector3>       c1;
-  std::vector<TLorentzVector> c2;
   std::vector<kit::MatchedPair>    c3;
-  std::vector<std::vector<double> > c4;
-  std::vector<TH1F*> c5;
-  std::vector<TH1*> c51;
   std::vector<kit::PtThing>    c6;
-  std::map<std::string, std::vector<float>* > c7;
-  std::map<std::string, std::vector<float> >  c8;
-  std::map<std::string, std::vector<double> > c9;
-  std::map<std::string, std::vector<double>* > c10;
-  std::vector<bool>    c11;
 
   HelperFor<reco::GenParticle> h1;
   HelperFor<reco::HcalNoiseRBX> h2;
