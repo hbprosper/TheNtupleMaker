@@ -1,4 +1,5 @@
-# TheNtupleMaker
+TheNtupleMaker
+==============
 
 ## Contents
 1. [Introduction](#introduction)
@@ -14,7 +15,7 @@
 ## Introduction <a name="introduction"></a>
 
 __TheNtupleMaker__ (TNM) is a tool that automates the creation of simple ROOT ntuples from data in the EDM format used by the CMS Collaboration. For example, TNM can be run on CMS mini Analysis Object Data (miniAOD) files.  The tool also automatically generates a __C++__ and __Python__ analyzer skeleton that can be the basis of code for analyzing the content of the ntuples. 
-TNM works with miniAODs built with ROOT 5. Therefore, it is compatible with all versions of CMSSW (https://github.com/cms-sw/cmssw), the CMS Collaboration codebase, which depends on ROOT 5.  A version of TNM that works with [ROOT 6](http://cern.root.ch) is under development.
+TNM works with miniAODs built with ROOT 5. Therefore, it is compatible with all versions of CMSSW (https://github.com/cms-sw/cmssw), the CMS Collaboration codebase, which depends on ROOT 5.  A version of TNM that works with [ROOT 6](http://root.cern.ch) is under development.
 
 TNM is the brainchild of Sezen Sekmen who, in December 2009, who argued that in spite of the complexity of the data formats in CMSSW, ultimately data are simply a collection of numbers, each of which is defined by an access function that returns a simple type, typically, a floating point number or an integer. In CMSSW, these access functions are the methods of C++ classes. Several thousand such functions are available in CMSSW . Sezen argued that once data are viewed this way, it ought to be possible to build a tool that allows the user to create the desired combination of the these data. TNM is the first realization of this vision. The package was developed by Harrison Prosper and Sezen Sekmen with help from Jeff Haas. The ultimate goal is to create an online portal, with something like TNM as a backend, 
 
