@@ -23,8 +23,17 @@ TNM, which was developed by Harrison Prosper and Sezen Sekmen, is the first real
 
 ## Installation <a name="installation"></a>
 
-We provide instructions for installing TNM within a [docker](https://www.docker.com/) container (a secure, consistent, software environment isolated from the host), specifically one that provides access to the CMS [open data](http://opendata.cern.ch/) consistent with CMSSW_5_3_32. (Note that TNM can be used with any version of CMSSW built using ROOT 5.)
+We provide instructions for installing TNM within a [docker](https://www.docker.com/) container (a secure, consistent, software environment isolated from the host), specifically one that provides access to the CMS [open data](http://opendata.cern.ch/) consistent with CMSSW version CMSSW_5_3_32. (Note that TNM can be used with any version of CMSSW built using ROOT 5.)
 The instructions given are for a Mac, which in addition to __docker__ requires an installation of __[XQuartz](https://www.xquartz.org/)__. When active, XQuartz makes it possible for graphical user interfaces to be used within a docker container (that is, it provides X11 forwarding).
+
+### 1. Configuring XQuartz
+Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item, then select Preferences. Under Security check *Allow connections from network clients*. Exit XQuartz and re-run to ensure that the settings have taken effect. Now open a terminal window.
+
+### 2. Creating and running a docker container
+
+```bash
+docker run -it -v ${HOME}/.ssh:/home/cmsur/.ssh -v ${HOME}:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --volume="$HOME/.Xauthority:/home/cmsusr/.Xauthority" --name tnm cmsopendata/cmssw_5_3_32 /bin/bash
+```
 
 Data formats are version dependent. Therefore, in order principle, TheNtu is CMSSW version-independent.  Version-independence is achieved by running an initialization script before building !TheNtupleMaker that analyzes the C++ classes in the CMSSW subsystems =AnalysisDataFormats=, =DataFormats= and =SimDataFormats=. The initialization script makes a valiant attempt to guess which of the thousands of C++ classes are most likely to be of interest to those doing physics analysis.  <br><p>The installation instructions below are given for =CMSSW_7_2_3=.  To install, do the following:
 
