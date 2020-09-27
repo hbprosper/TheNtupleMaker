@@ -64,11 +64,11 @@ You may want to add the following commands to `.bash_profile` in your container
 alias ls="ls --color"
 PS1="docker/\W> "
 ```
-and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in `$HOME/CMSSW_3_5_32/src`, if not move there and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
+and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in `$HOME/CMSSW_3_5_32/src` and the command `cmsenv` may have already been executed while in that folder. If not, `cd` to that fold and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
 
 ### Download and build TheNtupleMaker
 
-Make sure you are in the folder `$HOME/CMSSW_5_3_32/src` and the command `cmsenv` to set up the CMSSW environment has been executed. Then do
+Make sure you are in the folder `$HOME/CMSSW_5_3_32/src` before executing the command `cmsenv` in order to set up the CMSSW environment. Then do
 ```bash
 mkdir PhysicsTools
 git clone git://github.com/hbprosper/TheNtupleMaker
@@ -93,16 +93,16 @@ The first thing to do is create, either by hand or better still using the script
 ```bash
 makentuplecfi.py 
 ```
-and on the GUI, open myEDMsample.root using "File --> Open" or the dedicated file open button on the top left.  
+and, in the GUI that appears, open myEDMsample.root using "File --> Open" or using the dedicated file open button on the top left.  
 The GUI would look like this:
 
 ![](./GUI.png)
 
-The methods to be called by TNM are selected (or deselected) from the __Methods__ tab, while the __Selected Methods__ tab can be used to check which methods have been selected. To select a method, first select a class from the list of __Classes__, select one or more methods, and select one or more categories from the list __Category__. For example, in the figure above, we have selected the class __reco::PFJet__, the methods __pt()__, __eta()__, and __phi()__, and the category __ak7PFJets__, that is, jets created with the anti-kT algorithm with a cone size of 0.7. Repeat the selection for all the methods of interest, then Save the file  with the default name of __ntuple_cfi.py__ in the local __python__ folder. Once a configuration file has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods, by hand, to the configuration file created using the GUI. If  you add a method that is  not known to TNM, the latter will warn you at runtime. 
+The methods to be called by TNM are selected (or deselected) from the __Methods__ tab, while the __Selected Methods__ tab can be used to check which methods have been selected. To select a method, first select a class from the list of __Classes__, select one or more methods, and select one or more categories from the list __Category__. For example, in the figure above, we have selected the class __vector<reco::PFJet>__, the methods __pt()__, __eta()__, and __phi()__, and the category __ak7PFJets__, that is, jets created with the anti-kT algorithm with a cone size of 0.7. Repeat the selection for all the methods of interest, then Save the file  with the default name of __ntuple_cfi.py__ to the local __python__ folder. Once a configuration file has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods, by hand, to the configuration file created using the GUI. If  you add a method that is  not known to TNM, the latter will warn you at runtime. 
 
-When __mkntuplecfi.py__ runs for the first time, it creates three folders __methods__, __txt__, and __html__. The __methods__ folder lists the accessor methods of a subset of the available CMSSW clases, those most likely to be of interest. The folders __txt__ and __html__ provide similar information but in different formats. Here is an exhaustive listing of all access methods of the CMSSW <a href="http://hbprosper.github.io/TheNtupleMaker/DataFormats.JetReco.PFJet.PFJet.html" target="_blank">reco::PFJet</a> class.
+When __mkntuplecfi.py__ runs for the first time, it creates three folders __methods__, __txt__, and __html__. The __methods__ folder lists the accessor methods of a subset of the available CMSSW clases, those most likely to be of interest. The folders __txt__ and __html__ provide similar information but in different formats. Here is an exhaustive listing of all access methods of the CMSSW class [reco::PFJet](http://hbprosper.github.io/TheNtupleMaker/DataFormats.JetReco.PFJet.PFJet.html). (Tip: use Command + click to open any link in another tab.)
 
-You can look into __python/ntuple_cfi.py__ to see the ntuple content.  As mentioned earlier, the GUI is just a tool to automate the creation of this configuration.  Once you have a starter __python/ntuple_cfi.py__, you can modify it by hand to extend its content.  You can also save __ntuple_cfi.py__ with a different name.  However, you must make sure that the name change is propagated to __TheNtupleMaker_cfg.py__ in order for TNM to know which ntuple content configuration to work with.
+You can look at __python/ntuple_cfi.py__ to see the ntuple content.  As mentioned earlier, the GUI is just a tool to automate the creation of this configuration.  Once you have a starter __python/ntuple_cfi.py__, you can modify it by hand to extend its content.  You can also save __ntuple_cfi.py__ with a different name.  However, you must make sure that the name change is propagated to __TheNtupleMaker_cfg.py__ in order for TNM to know which ntuple content configuration to work with.
 
 ### Runing TNM
 
