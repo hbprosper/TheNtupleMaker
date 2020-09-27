@@ -41,7 +41,7 @@ docker run -it -v ${HOME}/.ssh:/home/cmsur/.ssh -v ${HOME}:/home/cmsusr/hosthome
 -v ${HOME}/.ssh:/home/cmsur/.ssh          | mount (make visible) the host's .ssh folder at the container mount point of the same name |
 -v ${HOME}:/home/cmsusr/hosthome | mount the home folder of the host at container mount point hostname |
 --net=host | allow network connections via host |
---env="DISPLAY=`hostname`:0" | set environment variable DISPLAY in container to the host name |
+--env="DISPLAY=\`hostname\`:0" | set environment variable DISPLAY in container to the host name |
 --volume="$HOME/.Xauthority:/home/cmsusr/.Xauthority" | mount the host's .Xauthority folder at the container mount point of the same name | 
 --name tnm | name of container |
 cmsopendata/cmssw_5_3_32 | image to run |
