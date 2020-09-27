@@ -31,18 +31,20 @@ Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz m
 
 ### 2. Create and run a docker container
 
+In the example below, we create a container called *tnm* using the image *cmsopendata/cmssw_5_3_32*.
 ```bash
-docker run -it -v ${HOME}/.ssh:/home/cmsur/.ssh -v ${HOME}:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --volume="$HOME/.Xauthority:/home/cmsusr/.Xauthority" --name tnm cmsopendata/cmssw_5_3_32 /bin/bash
+docker run -it -v $HOME/.ssh:/home/cmsur/.ssh -v $HOME/.Xauthority:/home/cmsusr/.Xauthority -v $HOME:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --name testme cmsopendata/cmssw_5_3_32 /bin/bash
 ```
+The table below briefly describes the various switches used with the docker command. Note the use of backslashes with the command __hostname__.
 
 | __switch__                   | __description__     |
 | :---          | :--- |
 -it     | run container in interactive mode |
--v ${HOME}/.ssh:/home/cmsur/.ssh          | mount (make visible) the host's .ssh folder at the container mount point of the same name |
--v ${HOME}:/home/cmsusr/hosthome | mount the home folder of the host at container mount point hostname |
+-v $HOME/.ssh:/home/cmsur/.ssh          | mount the host's .ssh folder at the container mount point of the same name |
+-v $HOME/.Xauthority:/home/cmsusr/.Xauthority | mount the host's .Xauthority folder at the container mount point of the same name | 
+-v $HOME:/home/cmsusr/hosthome | mount the home folder of the host at container mount point hostname |
 --net=host | allow network connections via host |
 --env="DISPLAY=\`hostname\`:0" | set environment variable DISPLAY in container to the host name |
---volume="$HOME/.Xauthority:/home/cmsusr/.Xauthority" | mount the host's .Xauthority folder at the container mount point of the same name | 
 --name tnm | name of container |
 cmsopendata/cmssw_5_3_32 | image to run |
 /bin/bash | shell to be used in container |
