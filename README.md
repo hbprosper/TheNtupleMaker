@@ -24,7 +24,7 @@ TNM, which was developed by Harrison Prosper and Sezen Sekmen starting 2009, is 
 
 ## Documentation <a name="documentation"></a>
 
-Detailed documentation of TNM including installation instructions and simple and advanced use cases are provided in [TheNtupleMaker.pdf][https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf] (also found under docs/).
+Detailed documentation of TNM including installation instructions and simple and advanced use cases are provided in [TheNtupleMaker.pdf](https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf) (also found under docs/).
 
 ## Installation <a name="installation"></a>
 
@@ -85,7 +85,7 @@ where *K* should be replaced with the number of cores at your disposal. If you d
 
 ## Tutorial
 
-To configure the ntuple contents, you will need a sample from the EDM data from which you intend to make the ntuple.  The ROOT file needs to be either in your local area, or a soft link must be created (e.g. with the command `ln -s path-to-root-file myEDMsample.root`).  If you do not already have a sample locally, it is very easy to copy a sample with a small number of events from data in CMS storage locations using [this configuration file][https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookDataSamples#Copy_Data_Locally].
+To configure the ntuple contents, you will need a sample from the EDM data from which you intend to make the ntuple.  The ROOT file needs to be either in your local area, or a soft link must be created (e.g. with the command `ln -s path-to-root-file myEDMsample.root`).  If you do not already have a sample locally, it is very easy to copy a sample with a small number of events from data in CMS storage locations using [this configuration file](https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookDataSamples#Copy_Data_Locally).
 
 The first thing to do is create, either by hand or better still using the script __mkntuplecfi.py__, a configuration specifying which methods are to be called to extract the desired data from the the EDM file. The script __mkntuplecfi.py__ allows you to make a first pass at building the configuration file. Run the command
 
@@ -124,7 +124,7 @@ and also try the Python version
 If all goes well, you will find the file __analyzer_histograms.root__, which of course will be empty since you've not done anything yet!
 
 We are currently working on taking the analysis code generation phase one step further, 
-We are working on taking the analysis code generation one step further.  We are developing a setup that would produce a complete analysis code given the description of the analysis writting using the domain specific ADL (Analysis Description Language).  Given an ntuple.root and the analysis description written in ADL, a script will automaticall produce a complete analysis code without any need for programming.  More information can be found in the [adl2tnm github repository][https://github.com/hbprosper/adl2tnm].
+We are working on taking the analysis code generation one step further.  We are developing a setup that would produce a complete analysis code given the description of the analysis writting using the domain specific ADL (Analysis Description Language).  Given an ntuple.root and the analysis description written in ADL, a script will automaticall produce a complete analysis code without any need for programming.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm).
 
 
 
