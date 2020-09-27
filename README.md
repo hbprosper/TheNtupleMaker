@@ -3,13 +3,14 @@ TheNtupleMaker
 
 ## Contents
 1. [Introduction](#introduction)
-2. [Installation](#installation)
-3. [Tutorial](#tutorial)
+2. [Documentation](#documentation)
+3. [Installation](#installation)
+4. [Tutorial](#tutorial)
 
 
 
 "Any intelligent fool can make things bigger, more complex, and more violent. It takes a touch of genius, and a lot of courage, to move in the opposite direction."  
-*Albert Einstein*
+*E. F. Schumacher*
 
 
 ## Introduction <a name="introduction"></a>
@@ -17,9 +18,13 @@ TheNtupleMaker
 __TheNtupleMaker__ (TNM) is a tool that automates the creation of simple [ROOT](http://root.cern.ch) ntuples from data in the (EDM) format developed and used by the [CMS Collaboration](https://cms.cern/). In particular, TNM can be run on CMS mini Analysis Object Data (miniAOD) files.  It also automatically generates a __C++__ and __Python__ analyzer skeleton programs that can be the basis of code for analyzing the contents of the ntuples. 
 TNM works with miniAODs built with ROOT 5, therefore, it is compatible with all versions of CMSSW (https://github.com/cms-sw/cmssw), the CMS Collaboration's codebase, which depends on ROOT 5.  A version of TNM that works with ROOT 6 is under development.
 
-In December 2009, [Sezen Sekmen](https://www.fizikist.com/sezen-sekmen-ile-cern-ve-parcacik-fizigi-uzerine-soylesi/) had an ephiphany. She noted that in spite of the complexity of the data formats used by collaborations such as CMS, and our quarter-centruy infatuation with object oriented programming and C++ objects, in particular, the data that are ultimately used in a physics analysis are simply a collection of numbers each of which is in one-to-one correspondence with an access function that returns the datum: a simple type, typically, a floating point number or an integer. This may require indirection; for example, the __reco::PFTau__ class in CMSSW has a method called `jetRef()` that returns a C++ object, but the latter has a method that returns the charged hadron energy. Consequently, we can access that number using the *compound method* `jetRef()->chargedHadronEnergy()`. Sekmen argued, therefore, that a tool should be built that makes it possible for a user to call automatically any combination of these access functions, which ultimately return simple types, and thereby create the desired combination of data packaged in a ROOT file. In CMSSW these access functions number in the thousabds. 
+In spite of the complexity of the data formats used by collaborations such as CMS, and our quarter-centruy infatuation with object oriented programming and C++ objects, in particular, the data that are ultimately used in a physics analysis are simply a collection of numbers each of which is in one-to-one correspondence with an access function that returns the datum: a simple type, typically, a floating point number or an integer. This may require indirection; for example, the __reco::PFTau__ class in CMSSW has a method called `jetRef()` that returns a C++ object, but the latter has a method that returns the charged hadron energy. Consequently, we can access that number using the *compound method* `jetRef()->chargedHadronEnergy()`. Sekmen arguedhttps://indico.cern.ch/event/959859/3_5, therefore, that a tool should be built that makes it possible for a user to call automatically any combination of these access functions, which ultimately return simple types, and thereby create the desired combination of data packaged in a ROOT file. In CMSSW these access functions number in the thousabds. 
 
-TNM, which was developed by Harrison Prosper and Sezen Sekmen, is the first realization of this idea and the first step towards the ultimate goal of creating an online portal, with something like TNM as a backend, in which access to particle physics data would be a matter of making intuitive queries about what data are available, learning their provenance and meaning, selecting them, pressing a button and creating an ntuple that can be transparently accessed using ROOT or whatever ROOT evolves into.
+TNM, which was developed by Harrison Prosper and Sezen Sekmen starting 2009, is the first realization of this idea and the first step towards the ultimate goal of creating an online portal, with something like TNM as a backend, in which access to particle physics data would be a matter of making intuitive queries about what data are available, learning their provenance and meaning, selecting them, pressing a button and creating an ntuple that can be transparently accessed using ROOT or whatever ROOT evolves into.
+
+## Documentation <a name="documentation"></a>
+
+Detailed documentation of TNM including installation instructions and simple and advanced use cases are provided in [TheNtupleMaker.pdf][https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf] (also found under docs/).
 
 ## Installation <a name="installation"></a>
 
@@ -62,7 +67,7 @@ and do `source ~/.bash_profile` to tidy up the command line prompt. You should a
 
 ### Download and build TheNtupleMaker
 
-Make sure you are in the folder `$HOME/CMSSW_3_5_32/src` and the command `cmsenv` to set up the CMSSW environment has been executed. Then do
+Make sure you are in the folder `$HOME/CMSSW_5_3_32/src` and the command `cmsenv` to set up the CMSSW environment has been executed. Then do
 ```bash
 mkdir PhysicsTools
 git clone git://github.com/hbprosper/TheNtupleMaker
@@ -79,7 +84,16 @@ scram b -j K
 where *K* should be replaced with the number of cores at your disposal. If you don't know just omit the `-j` switch. If the build succeeds, which should take a few to about 10 minutes, you are ready to use TNM.
 
 ## Tutorial
-In this tutorial, we shall assume you have a miniAOD called __reco.root__ in your TNM area, or a soft link (created with the command `ln -s path-to-root-file reco.root`) with that name. The first thing to do is create, either by hand or better still using the horribly named command __mkntuplecfi.py__, a configuration specifying which methods are to be called to extract the desired data from the miniAOD. The command __mkntuplecfi.py__ allows you to make a first pass at building the configuration file. The command runs a GUI that looks like this (after opening the file reco.root):
+
+To configure the ntuple contents, you will need a sample from the EDM data from which you intend to make the ntuple.  The ROOT file needs to be either in your local area, or a soft link must be created (e.g. with the command `ln -s path-to-root-file myEDMsample.root`).  If you do not already have a sample locally, it is very easy to copy a sample with a small number of events from data in CMS storage locations using [this configuration file][https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookDataSamples#Copy_Data_Locally].
+
+The first thing to do is create, either by hand or better still using the script __mkntuplecfi.py__, a configuration specifying which methods are to be called to extract the desired data from the the EDM file. The script __mkntuplecfi.py__ allows you to make a first pass at building the configuration file. Run the command
+
+```bash
+makentuplecfi.py 
+```
+and on the GUI, open myEDMsample.root using "File --> Open" or the dedicated file open button on the top left.  
+The GUI would look like this:
 
 ![](./GUI.png)
 
@@ -87,13 +101,15 @@ The methods to be called by TNM are selected (or deselected) from the __Methods_
 
 When __mkntuplecfi.py__ runs for the first time, it creates three folders __methods__, __txt__, and __html__. The __methods__ folder lists the accessor methods of a subset of the available CMSSW clases, those most likely to be of interest. The folders __txt__ and __html__ provide similar information but in different formats. Here is an exhaustive listing of all access methods of the CMSSW <a href="http://hbprosper.github.io/TheNtupleMaker/DataFormats.JetReco.PFJet.PFJet.html" target="_blank">reco::PFJet</a> class.
 
+You can look into __python/ntuple_cfi.py__ to see the ntuple content.  As mentioned earlier, the GUI is just a tool to automate the creation of this configuration.  Once you have a starter __python/ntuple_cfi.py__, you can modify it by hand to extend its content.  You can also save __ntuple_cfi.py__ with a different name.  However, you must make sure that the name change is propagated to __TheNtupleMaker_cfg.py__ in order for TNM to know which ntuple content configuration to work with.
+
 ### Runing TNM
 
 Simply do
 ```bash
 cmsRun TheNtupleMake_cfg.py
 ```
-after appropriate editing of __python/ntuple_cfi.py__ and __TheNtupleMaker_cfg.py__. Upon completion of the run, you will see a ROOT file called, by default __ntuple.root__, and a folder called, by default, __analyzer__. The analyzer folder contains the skeleton analysis programs in C++ and Python. Check that all is well by doing the following
+after appropriate editing of __python/ntuple_cfi.py__ and __TheNtupleMaker_cfg.py__. Upon completion of the run, you will see a ROOT file called, by default __ntuple.root__, and a folder called, by default, __analyzer__ (these can be changed from within __python/ntuple_cfi.py__). The analyzer folder contains the skeleton analysis programs in C++ and Python. Check that all is well by doing the following
 ```bash
 cd analyzer
 source setup.sh
@@ -106,3 +122,10 @@ and also try the Python version
 ./analyzer.py
 ```
 If all goes well, you will find the file __analyzer_histograms.root__, which of course will be empty since you've not done anything yet!
+
+We are currently working on taking the analysis code generation phase one step further, 
+We are working on taking the analysis code generation one step further.  We are developing a setup that would produce a complete analysis code given the description of the analysis writting using the domain specific ADL (Analysis Description Language).  Given an ntuple.root and the analysis description written in ADL, a script will automaticall produce a complete analysis code without any need for programming.  More information can be found in the [adl2tnm github repository][https://github.com/hbprosper/adl2tnm].
+
+
+
+
