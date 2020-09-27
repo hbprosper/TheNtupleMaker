@@ -35,6 +35,11 @@ Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz m
 docker run -it -v ${HOME}/.ssh:/home/cmsur/.ssh -v ${HOME}:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --volume="$HOME/.Xauthority:/home/cmsusr/.Xauthority" --name tnm cmsopendata/cmssw_5_3_32 /bin/bash
 ```
 
+| __switch__                   | __description__     |
+| :---          | :--- |
+-it     | run container in interactive mode |
+-v ${HOME}/.ssh:/home/cmsur/.ssh          | mount (that is, map) host .ssh folder in docker container to mount point .ssh |
+
 Data formats are version dependent. Therefore, in order principle, TheNtu is CMSSW version-independent.  Version-independence is achieved by running an initialization script before building !TheNtupleMaker that analyzes the C++ classes in the CMSSW subsystems =AnalysisDataFormats=, =DataFormats= and =SimDataFormats=. The initialization script makes a valiant attempt to guess which of the thousands of C++ classes are most likely to be of interest to those doing physics analysis.  <br><p>The installation instructions below are given for =CMSSW_7_2_3=.  To install, do the following:
 
    * Create a CMSSW local code development area.
