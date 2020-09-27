@@ -31,7 +31,7 @@ Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz m
 
 ### 2. Create and run a docker container
 
-In the example below, we create a container called *tnm* using the image *cmsopendata/cmssw_5_3_32*.
+In new terminal window, we create a container called *tnm* using the image *cmsopendata/cmssw_5_3_32*. Of course, you can choose whatever name you like for the container. (By the way, to remove a container do ```bash docker rm <container-name>```.)
 ```bash
 docker run -it -v $HOME/.ssh:/home/cmsur/.ssh -v $HOME/.Xauthority:/home/cmsusr/.Xauthority -v $HOME:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --name testme cmsopendata/cmssw_5_3_32 /bin/bash
 ```
