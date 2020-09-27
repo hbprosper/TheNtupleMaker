@@ -48,6 +48,7 @@ The table below briefly describes the various switches used with the docker comm
 --name tnm | name of container |
 cmsopendata/cmssw_5_3_32 | image to run |
 /bin/bash | shell to be used in container |
+
 You may want to add the following commands to `.bash_profile`
 ```bash
 alias ls="ls --color"
