@@ -75,12 +75,11 @@ scram b -j K
 where *K* should be replaced with the number of cores at your disposal. If you don't know just omit the `-j` switch. If the build succeeds, which should take just a few minutes, you are ready to use TNM.
 
 ## Tutorial
-In this tutorial, we shall assume you have a miniAOD called __reco.root__ in your TNM area, or a soft link (created with the command `ln -s path-to-root-file reco.root`) with that name. The first thing to be done is to create, either by hand or better still using the horribly command __mkntuplecfi.py__, which runs a GUI that allows ou to build a configuration file that specifies which methods are to be called by TNM in order to extract the data of interest from __reco.root__.  The command runs a GUI that looks like this
+In this tutorial, we shall assume you have a miniAOD called __reco.root__ in your TNM area, or a soft link (created with the command `ln -s path-to-root-file reco.root`) with that name. The first thing to be done is to create, either by hand or better still using the horribly named command __mkntuplecfi.py__, which runs a GUI that allows ou to build a configuration file specifying which methods are to be called by TNM in order to extract the data of interest from __reco.root__.  The command runs a GUI that looks like this (after opening the file reco.root):
 
 ![](./mkntuplecfi.png)
 
-
-The methods to be called by TNM are selected (or deselected) from the =Methods= tab, while the =Selected Methods= tab can be used to check which methods have been selected. Once a configuration file fragment has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods to the configuration file by hand. If  you add a method that is  not known to TNM, the latter will warn you at runtime.
+The methods to be called by TNM are selected (or deselected) from the __Methods__ tab, while the __Selected Methods__ tab can be used to check which methods have been selected. Once a configuration file fragment has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods to the configuration file by hand. If  you add a method that is  not known to TNM, the latter will warn you at runtime.
 
 <br><p>The steps for creating an ntuple are:
    1. *Run mkntuplecfi.py*  from your TNM area to launch the GUI. The first time the command =mkntuplecfi.py= is executed, in a given directory, the GUI uses the list of classes in the TNM file =plugins/classlist.txt= to create a directory called =methods=, which, for each class,  contains a text file listing methods of that class that return fundamental types (e.g., int, float, double, etc.). (Directories =txt= and =html= are also created.)
