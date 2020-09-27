@@ -27,11 +27,11 @@ We provide instructions for installing TNM within a [docker](https://www.docker.
 The instructions given are for a Mac, which in addition to __docker__ requires an installation of __[XQuartz](https://www.xquartz.org/)__. When active, XQuartz makes it possible for graphical user interfaces to be used within a docker container (that is, it provides X11 forwarding).
 
 ### 1. Configure XQuartz
-Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item, then select Preferences. Under Security check *Allow connections from network clients*. Exit XQuartz and re-run to ensure that the settings have taken effect. Now open a terminal window.
+Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item, then select Preferences. Under Security check *Allow connections from network clients*. Exit XQuartz and re-run to ensure that the settings have taken effect. Now open a terminal window. In that window, be sure to make the host name of your laptop known to X11 using the command `xhost + \`hostname\``. If that does not work, try restarting your laptop, restart the docker daemon, and XQuartz, and try again. (Note that the host name may already be known to X11. You can see this simply by executing the command `xhost` and checking the listing. The host name, perhaps in lowercase, should be listed.)
 
 ### 2. Create and run a docker container
 
-In new terminal window, we create a container called *tnm* using the image *cmsopendata/cmssw_5_3_32*. Of course, you can choose whatever name you like for the container. (By the way, to remove a container do ```bash docker rm <container-name>```.)
+In the new terminal window, we create a container called *tnm* using the image *cmsopendata/cmssw_5_3_32*. Of course, you can choose whatever name you like for the container. (By the way, to remove a container do `docker rm <container-name>`.)
 ```bash
 docker run -it -v $HOME/.ssh:/home/cmsur/.ssh -v $HOME/.Xauthority:/home/cmsusr/.Xauthority -v $HOME:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --name testme cmsopendata/cmssw_5_3_32 /bin/bash
 ```
@@ -48,64 +48,30 @@ The table below briefly describes the various switches used with the docker comm
 --name tnm | name of container |
 cmsopendata/cmssw_5_3_32 | image to run |
 /bin/bash | shell to be used in container |
+You may want to add the following commands to `.bash_profile`
+```bash
+alias ls="ls --color"
+PS1="docker/\W> "
+```
+and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in $HOME/CMSSW_3_5_32/src`, if not move there and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
 
+### Download and build TheNtupleMaker
 
-Data formats are version dependent. Therefore, in order principle, TheNtu is CMSSW version-independent.  Version-independence is achieved by running an initialization script before building !TheNtupleMaker that analyzes the C++ classes in the CMSSW subsystems =AnalysisDataFormats=, =DataFormats= and =SimDataFormats=. The initialization script makes a valiant attempt to guess which of the thousands of C++ classes are most likely to be of interest to those doing physics analysis.  <br><p>The installation instructions below are given for =CMSSW_7_2_3=.  To install, do the following:
-
-   * Create a CMSSW local code development area.
-<pre class="command">
-cmsrel CMSSW_7_2_3 
-</pre>
-   * Setup CMSSW. Do this each time you enter CMSSW_7_2_3/src
-<pre class="command">
-cd CMSSW_7_2_3/src
-cmsenv
-</pre>
-   * Create the directory =PhysicsTools= if it does not yet exist in CMSSW_7_2_3/src. 
-<pre class="command">
+Make sure you are in the folder `$HOME/CMSSW_3_5_32/src` and you have executed the command `cmsenv`. Then do
+```bash
 mkdir PhysicsTools
-</pre>
-   * Download TNM.
-<pre class="command">
-cd PhysicsTools 
-git clone git://github.com/hbprosper/TheNtupleMaker.git
-</pre>
-Note: when TNM becomes available via CMSSW and if you wish to have your own copy (rather than the released version) it will be sufficient to do the following to download it.  
-<pre class="commabd">
-git cms-addpkg PhysicsTools/TheNtupleMaker
-</pre>
-   * Build TNM.
-<pre class="command">
+git clone git://github.com/hbprosper/TheNtupleMaker
 cd TheNtupleMaker
-cmsenv
-scripts/initTNM.py              
-scram b clean
-scram b -j 8
-</pre>
-The *git* command makes a local copy (a clone) of the remote git repository =TheNtupleMaker=.
-In order to compile TNM in a reasonable amount of time use as many cores as are available to you. The =-j 8= switch specifies that 8 cores are to be used during compilation. With 8 cores, TNM builds in a few minutes. </br>
-<p>
-It is generally better not to work in =PhysicsTools/TheNtupleMaker=, but rather in a subsystem/package parallel to it. (The structure of CMSSW is =subsystem/package= . A subsystem can contain several packages. !TheNtupleMaker is destined to be released as a package in the subsystem =PhysicsTools=.)
-First create a directory at the same level as =PhysicsTools=, that is, a subsystem - in this example, called =Pink=, =cd= to that directory, then create a package.
-<pre class="command">
-cd CMSSW_7_2_3/src 
-mkdir Pink
-
-cd Pink
-mkpackage.py Floyd
-</pre>
-The last command will create the output
-<pre class="output">
-Subsystem:     Pink
-Package: Floyd
-Author:      Shakespeare's ghost
-</pre>
-and replace the author name with your name if it is able to. The =mkpackage.py= command  creates a standard TNM work area, here called =Floyd=, under the directory =Pink=. In order to initialize that area, do:
-<pre class="command">
-cd Floyd
-scram b
-</pre>
-Your area is now ready.
+```
+CMSSW Data formats are slightly version-dependent. But TNM is designed to be version-independent. This is achieved by running the command
+```bash
+scripts/initTNM.py
+```
+which makes a valiant attempt to guess which of the thousands of C++ classes are most likely to be of interest to those doing physics analysis.  TNM can now be built using the command below
+```bash
+scram b -j K
+```
+where *K* should be replaced with the number of cores at your disposal. If the build succeed, you are read to use TNM.
 
 ## Tutorial
 In this tutorial, we shall assume you have a miniAOD called =reco.root= in your TNM area, or a soft link (created with the command =ln -s path-to-root-file reco.root=) with that name. The first thing you have to do is to create, either by hand or better still using the command =mkntuplecfi.py=, which runs a GUI, a configuration file that specifies which methods are to be called by TNM in order to extract the data of interest from =reco.root=.  The command runs a GUI that looks like this
