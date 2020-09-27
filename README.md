@@ -123,8 +123,9 @@ and also try the Python version
 ```
 If all goes well, you will find the file __analyzer_histograms.root__, which of course will be empty since you've not done anything yet!
 
-We are currently working on taking the analysis code generation phase one step further, 
-We are working on taking the analysis code generation one step further.  We are developing a setup that would produce a complete analysis code given the description of the analysis writting using the domain specific ADL (Analysis Description Language).  Given an ntuple.root and the analysis description written in ADL, a script will automaticall produce a complete analysis code without any need for programming.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm).
+### Interface with ADL
+
+We are currently taking the analysis code generation one step further.  We are developing a setup that would automatically produce a complete analysis code given the description of the analysis writtien using the domain specific analysis description language [ADL](http://adl.web.cern.ch/index.html).  This setup is a transpiler called __adl2tnm__, and it can automatically produce a directly executable complete analysis code given an ntuple.root and the analysis description written in ADL, without any need for programming.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm).
 
 
 
