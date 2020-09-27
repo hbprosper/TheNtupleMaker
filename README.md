@@ -31,7 +31,7 @@ Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz m
 
 ### 2. Create and run a docker container
 
-In the new terminal window, we create a container called *tnm* using the image *cmsopendata/cmssw_5_3_32*. Of course, you can choose whatever name you like for the container. (By the way, to remove a container do `docker rm <container-name>`.)
+In the new terminal window, create a container, here called *testme*, using the image *cmsopendata/cmssw_5_3_32*. (Of course, you can choose whatever name you like for the container. By the way, to remove a container do `docker rm <container-name>`.)
 ```bash
 docker run -it -v $HOME/.ssh:/home/cmsur/.ssh -v $HOME/.Xauthority:/home/cmsusr/.Xauthority -v $HOME:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --name testme cmsopendata/cmssw_5_3_32 /bin/bash
 ```
@@ -54,7 +54,7 @@ You may want to add the following commands to `.bash_profile`
 alias ls="ls --color"
 PS1="docker/\W> "
 ```
-and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in $HOME/CMSSW_3_5_32/src`, if not move there and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
+and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in `$HOME/CMSSW_3_5_32/src`, if not move there and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
 
 ### Download and build TheNtupleMaker
 
@@ -64,18 +64,18 @@ mkdir PhysicsTools
 git clone git://github.com/hbprosper/TheNtupleMaker
 cd TheNtupleMaker
 ```
-CMSSW Data formats are slightly version-dependent. But TNM is designed to be version-independent. This is achieved by running the command
+CMSSW Data formats are slightly version-dependent. But, TNM is designed to be version-independent, which is achieved by running the command
 ```bash
 scripts/initTNM.py
 ```
-which makes a valiant attempt to guess which of the thousands of C++ classes are most likely to be of interest to those doing physics analysis.  TNM can now be built using the command below
+This script makes a valiant attempt to guess which of hundreds of C++ classes are most likely to be of interest to those doing physics analysis.  TNM can now be built using the command below
 ```bash
 scram b -j K
 ```
-where *K* should be replaced with the number of cores at your disposal. If the build succeed, you are read to use TNM.
+where *K* should be replaced with the number of cores at your disposal. If you don't know just omit the `-j` switch. If the build succeeds, which should take just a few minutes, you are ready to use TNM.
 
 ## Tutorial
-In this tutorial, we shall assume you have a miniAOD called =reco.root= in your TNM area, or a soft link (created with the command =ln -s path-to-root-file reco.root=) with that name. The first thing you have to do is to create, either by hand or better still using the command =mkntuplecfi.py=, which runs a GUI, a configuration file that specifies which methods are to be called by TNM in order to extract the data of interest from =reco.root=.  The command runs a GUI that looks like this
+In this tutorial, we shall assume you have a miniAOD called __reco.root__ in your TNM area, or a soft link (created with the command `ln -s path-to-root-file reco.root`) with that name. The first thing to be done is to create, either by hand or better still using the horribly command __mkntuplecfi.py__, which runs a GUI that allows ou to build a configuration file that specifies which methods are to be called by TNM in order to extract the data of interest from __reco.root__.  The command runs a GUI that looks like this
 
 <img alt="mkntuplecfi.png" height="350" src="%ATTACHURLPATH%/mkntuplecfi.png"/>
 
