@@ -27,7 +27,11 @@ We provide instructions for installing TNM within a [docker](https://www.docker.
 The instructions given are for a Mac, which in addition to __docker__ requires an installation of __[XQuartz](https://www.xquartz.org/)__. When active, XQuartz makes it possible for graphical user interfaces to be used within a docker container (that is, it provides X11 forwarding).
 
 ### 1. Configure XQuartz
-Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item, then select Preferences. Under Security check *Allow connections from network clients*. Exit XQuartz and re-run to ensure that the settings have taken effect. Now open a terminal window. In that window, be sure to make the host name of your laptop known to X11 using the command `xhost + \`hostname\``. If that does not work, try restarting your laptop, restart the docker daemon, and XQuartz, and try again. (Note that the host name may already be known to X11. You can see this simply by executing the command `xhost` and checking the listing. The host name, perhaps in lowercase, should be listed.)
+Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item, then select Preferences. Under Security check *Allow connections from network clients*. Exit XQuartz and re-run to ensure that the settings have taken effect. Now open a terminal window. In that window, be sure to make the host name of your laptop known to X11 using the command 
+```bash
+xhost + `hostname`
+```
+If that does not work, try restarting your laptop, restart the docker daemon, and XQuartz, and try again. (Note that the host name may already be known to X11. You can see this by executing the command `xhost` and checking the listing. The host name, if listed, may be in lowercase but this does not seem to matter.)
 
 ### 2. Create and run a docker container
 
