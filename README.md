@@ -126,7 +126,7 @@ If all goes well, you will find the file __analyzer_histograms.root__, which of 
 
 ### Interface with ADL
 
-We are currently taking the analysis code generation one step further.  We are developing a setup that would automatically produce a complete analysis code given the description of the analysis writtien using the domain specific analysis description language [ADL](http://adl.web.cern.ch/index.html).  This setup is a transpiler called __adl2tnm__, and it can automatically produce directly a complete, executable, analysis code given an ntuple.root and the analysis description written in ADL without any need for programming.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm).
+We are currently taking the analysis code generation one step further.  We are developing a tool that will automatically produce a complete analysis code given the description of the analysis writtien using the domain specific analysis description language [ADL](http://adl.web.cern.ch/index.html).  A prototype tool, a transpiler called __adl2tnm__, has been developed that can automatically produce a complete, executable, analysis code given an ntuple.root and the analysis description written in ADL without any need for programming.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm). Note this tool is still very much at the proof of principle stage!
 
 
 
