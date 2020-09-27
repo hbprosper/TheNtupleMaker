@@ -27,11 +27,11 @@ Here, instructions are provided for installing TNM within a [docker](https://www
 The instructions are for a Mac, which in addition to __docker__ requires an installation of __[XQuartz](https://www.xquartz.org/)__. When active, XQuartz makes it possible for graphical user interfaces to be used within a docker container (that is, it provides X11 forwarding).
 
 ### 1. Configure XQuartz
-Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item at the upper left-hand corner of he screen, then select *Preferences*. Under the *Security* tabe check *Allow connections from network clients*. Exit XQuartz and re-run it to ensure that the settings have taken effect. Now open a terminal window. In that window, be sure to make the host name of your laptop known to X11 using the command 
+Run XQuartz (which is located in Applications/Utilities). Click on the XQuartz menu item (generally, at the left of the menubar), then select *Preferences*. Under the *Security* tabe check *Allow connections from network clients*. Exit XQuartz and re-run it to ensure that the settings have taken effect. Now open a terminal window. In that window, be sure to make the host name of your laptop known to X11 using the command 
 ```bash
 xhost + `hostname`
 ```
-If that does not work, try restarting your Mac, restart the docker daemon if it doesn't startup at boot time as well as XQuartz, and try again. (Note that the host name may already be known to X11. You can see this by executing the command `xhost` and checking the listing. The host name, if listed, may be in lowercase but this does not seem to matter.)
+If that does not work, try restarting your Mac, restart the docker daemon if it doesn't start at boot time as well as XQuartz, and try again. (Note that the host name may already be known to X11. You can see this by executing the command `xhost` and checking the listing. The host name, if listed, may be in lowercase but this does not seem to matter.)
 
 ### 2. Create and run a docker container
 
