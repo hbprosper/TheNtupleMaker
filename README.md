@@ -77,7 +77,7 @@ where *K* should be replaced with the number of cores at your disposal. If you d
 ## Tutorial
 In this tutorial, we shall assume you have a miniAOD called __reco.root__ in your TNM area, or a soft link (created with the command `ln -s path-to-root-file reco.root`) with that name. The first thing to be done is to create, either by hand or better still using the horribly named command __mkntuplecfi.py__, which runs a GUI that allows ou to build a configuration file specifying which methods are to be called by TNM in order to extract the data of interest from __reco.root__.  The command runs a GUI that looks like this (after opening the file reco.root):
 
-![](./mkntuplecfi.png)
+![./mkntuplecfi.png]
 
 The methods to be called by TNM are selected (or deselected) from the __Methods__ tab, while the __Selected Methods__ tab can be used to check which methods have been selected. Once a configuration file fragment has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods to the configuration file by hand. If  you add a method that is  not known to TNM, the latter will warn you at runtime.
 
