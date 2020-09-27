@@ -77,46 +77,28 @@ where *K* should be replaced with the number of cores at your disposal. If you d
 ## Tutorial
 In this tutorial, we shall assume you have a miniAOD called __reco.root__ in your TNM area, or a soft link (created with the command `ln -s path-to-root-file reco.root`) with that name. The first thing to be done is to create, either by hand or better still using the horribly named command __mkntuplecfi.py__, which runs a GUI that allows ou to build a configuration file specifying which methods are to be called by TNM in order to extract the data of interest from __reco.root__.  The command runs a GUI that looks like this (after opening the file reco.root):
 
-![](./mkntuplecfi.png)
+![](./GUI.png)
 
-The methods to be called by TNM are selected (or deselected) from the __Methods__ tab, while the __Selected Methods__ tab can be used to check which methods have been selected. To select a method, first select a class from the list of __Classes__, select one or more methods, and select one or more categories from the list __Category__. For example, in the figure above, we have select the class __reco::PFJet__, the methods __pt()__, __eta()__, and __phi()__, and the category __ak7PFJets__, that is, jets created with the anti-kT algorithm with a cone size of 0.7. Once a configuration file fragment has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods, by hand, to the configuration file using the GUI. If  you add a method that is  not known to TNM, the latter will warn you at runtime. 
+The methods to be called by TNM are selected (or deselected) from the __Methods__ tab, while the __Selected Methods__ tab can be used to check which methods have been selected. To select a method, first select a class from the list of __Classes__, select one or more methods, and select one or more categories from the list __Category__. For example, in the figure above, we have select the class __reco::PFJet__, the methods __pt()__, __eta()__, and __phi()__, and the category __ak7PFJets__, that is, jets created with the anti-kT algorithm with a cone size of 0.7. Repeat the selection for all the methods of interest, then Save the file  with the default name of __ntuple_cfi.py__ in the __python__ folder. Once a configuration file fragment has been created, it can be edited by hand. *Note*: the GUI is just an aid; it does not list every possible method known to TNM, but just the ones that are most likely to be of interest. You are free to add methods, by hand, to the configuration file using the GUI. If  you add a method that is  not known to TNM, the latter will warn you at runtime. 
 
-When __mkntuplecfi.py__ runs for the first time, it creates three folders __methods__, __txt__, and __html__. The __methods__ folder lists the methods of a subset of the available CMSSW clases, those most likely to be on interest. The folders __txt__ and __html__ provide similar information but in different formats. Here is an exhaustive listing of all access methods of the CMSSW [reco::PFJet](./DataFormats.JetReco.PFJet.html) class.
+When __mkntuplecfi.py__ runs for the first time, it creates three folders __methods__, __txt__, and __html__. The __methods__ folder lists the methods of a subset of the available CMSSW clases, those most likely to be on interest. The folders __txt__ and __html__ provide similar information but in different formats. Here is an exhaustive listing of all access methods of the CMSSW [reco::PFJet](./DataFormatsJetRecoPFJet.html) class.
 
-<br><p>The steps for creating an ntuple are:
-   1. *Run mkntuplecfi.py*  from your TNM area to launch the GUI. The first time the command =mkntuplecfi.py= is executed, in a given directory, the GUI uses the list of classes in the TNM file =plugins/classlist.txt= to create a directory called =methods=, which, for each class,  contains a text file listing methods of that class that return fundamental types (e.g., int, float, double, etc.). (Directories =txt= and =html= are also created.)
-   1. *Create configuration file* 
-      i. Use the =File= menu to open =reco.root=.
-      i. Select =File &#8594; Open= from the menu or press the =Open an EDM file= button (at the top left of the GUI).
-      i. From the window that appears, select =reco.root= and press =Open=.
-      i. Under the =Classes= column, select the class of interest (e.g. =vector<pat::Jet>=). The selected class will be highlighted and all methods of the selected class that return simple types will appear in the =Methods= column and all categories available for the class will appear in the =Category= column (formerly, called =getByLabel=). 
-      i. Select a category (e.g., =slimmedJet=). The selected category will be highlighted.
-      i. Select methods of interest (e.g., =double pt()=, =double eta()=, etc.). The selected methods will be highlighted. The GUI has a rudimentary =Find method= entry window, but it is currently a tad brain dead in that you need to type the _exact_ name of the method and press =Enter= in order to search for it in the list of methods. 
-      i. Repeat the appropriate steps above to select all the methods of interest. You can check which methods have been selected by going to the =Selected Methods= tab. Classes and methods can be deselected from the =Classes= and =Methods= lists by clicking on the names again, whereupon they will no longer be highlighted.
-      i. When your selection is complete, select =File &#8594; Save= from the menu or press the =Save configuration file fragment= button (the second button in the toolbar) to save the configuration fragment. The default name for the configuration file fragment is =ntuple_cfi.py=. You should either save the file directly into your =python= directory, or copy the saved file to that directory after you exit the GUI. 
-      i. Exit the GUI. 
-   1. *Create the ntuple* by executing the command =cmsRun <configuration-file>=, for example:
-<pre class="command">
-cmsRun Floyd_cfg.py
-</pre>
-In your directory, you will find a file called =variables.txt= containing the list of ntuple variables, a file called =triggerNames.txt= containing the list of triggers found by TNM, the ntuple file =ntuple.root=, and a  directory called =analyzer= that contains the automatically created analyzer code. The name of the ntuple  file is specified in the configuration file. 
+### Runing TNM
 
-<p>Go to the analyzer directory and check that all is well by doing the following
-<pre class="command">
+Simply do
+```bash
+cmsRun TheNtupleMake_cfg.py
+```
+after appropriate editing of __python/ntuple_cfi.py__ and __TheNtupleMaker_cfg.py__. Upon completion of the run, you will see a ROOT ntuple file called, by default __ntuple.root__, and a folder called, by default, __analyzer__. The analyzer folder contains skeleton analysis programs in C++ and Python. Check that all is well by doing the following
+```bash
 cd analyzer
 source setup.sh
 make
 echo ../ntuple.root > filelist.txt
-
 ./analyzer  
-
+```
 and also try the Python version
-
+```bash
 ./analyzer.py
-</pre>
-If all goes well, in your directory you will find the file =analyzer_histograms.root=, which of course will be empty!
-<br>
-<br>
-
-
-
+```
+If all goes well, you will find the file __analyzer_histograms.root__, which of course will be empty since you've not done anything yet!
