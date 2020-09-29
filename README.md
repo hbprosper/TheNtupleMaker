@@ -24,8 +24,8 @@ TNM, which was developed by Harrison Prosper and Sezen Sekmen starting in 2009, 
 
 ## Documentation <a name="documentation"></a>
 
-Detailed documentation of TNM including installation instructions and simple and advanced use cases will appear shortly. 
-<!-- provided in [TheNtupleMaker.pdf](https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf) (also found under docs/)-->
+Detailed documentation of TNM including installation instructions and simple and advanced use cases is
+provided in [TheNtupleMaker.pdf](https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf) (also found under docs/).
 
 ## Installation <a name="installation"></a>
 
