@@ -1,3 +1,7 @@
+v6_1_2 Oct. 12 2020
+-------------------
+	Last release of ROOT 5 version of TNM before ROOT 6 version
+
 v6_1_1 Jun. 08 2015
 -------------------
 	1. Fix a problem with the analyzer Makefile.
@@ -491,5 +495,6 @@ v4_1_2:	Feb. 17 2011
 
 
 	3. Make mkvariables.py work on a larger class of simple ntuples
+
 
 
