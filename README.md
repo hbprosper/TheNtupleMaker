@@ -16,16 +16,20 @@ TheNtupleMaker
 ## Introduction <a name="introduction"></a>
 
 __TheNtupleMaker__ (TNM) is a tool that automates the creation of simple [ROOT](http://root.cern.ch) ntuples from data in the (EDM) format developed and used by the [CMS Collaboration](https://cms.cern/). In particular, TNM can be run on CMS mini Analysis Object Data (miniAOD) files.  It also automatically generates a __C++__ and __Python__ analyzer skeleton programs that can be the basis of code for analyzing the contents of the ntuples. 
-TNM works with miniAODs built with ROOT 5, therefore, it is compatible with all versions of CMSSW (https://github.com/cms-sw/cmssw), the CMS Collaboration's codebase, which depends on ROOT 5.  A version of TNM that works with ROOT 6 is under development.
+This version of TNM works with miniAODs built with __ROOT 6__, therefore, it is compatible with all versions of CMSSW (https://github.com/cms-sw/cmssw), the CMS Collaboration's codebase, which depends on ROOT 6.  (The older __ROOT 5__ version is under the master branch.)
 
 In spite of the complexity of the data formats used by collaborations such as CMS, and our quarter-centruy infatuation with object oriented programming and C++ objects, in particular, the data that are ultimately used in a physics analysis are simply a collection of numbers each of which is in one-to-one correspondence with an access function that returns the datum: a simple type, typically, a floating point number or an integer. This may require indirection; for example, the __reco::PFTau__ class in CMSSW has a method called `jetRef()` that returns a C++ object, but the latter has a method that returns the charged hadron energy. Consequently, we can access that number using the *compound method* `jetRef()->chargedHadronEnergy()`. Sekmen argued [](https://indico.cern.ch/event/959859/3_5), therefore, that a tool should be built that makes it possible for a user to call automatically any combination of these access functions, which ultimately return simple types, and thereby create the desired combination of data packaged in a ROOT file. In CMSSW these access functions number in the thousands. 
 
 TNM, which was developed by Harrison Prosper and Sezen Sekmen starting in 2009, is the first realization of this idea and the first step towards the ultimate goal of creating an online portal, with something like TNM as a backend, in which access to particle physics data would be a matter of making intuitive queries about what data are available, learning their provenance and meaning, selecting them, pressing a button and creating an ntuple that can be transparently accessed using ROOT or whatever ROOT evolves into.
 
+__TODO__: UPDATE __DOCUMENTATION__
+
+
 ## Documentation <a name="documentation"></a>
 
 Detailed documentation of TNM including installation instructions and simple and advanced use cases is
 provided in [TheNtupleMaker.pdf](https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf) (also found under docs/).
+
 
 ## Installation <a name="installation"></a>
 
