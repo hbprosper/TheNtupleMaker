@@ -1,20 +1,19 @@
 #!/usr/bin/env python
-import os, sys, string
+import os, sys
 #-----------------------------------------------------------------------------
 argv = sys.argv[1:]
 if len(argv) == 0:
-	print '''
+	sys.exit('''
 	Usage:
 	    gittag.py <tagname>
-	'''
-	sys.exit(0)
+	''')
 tagname = argv[0]
 
-username = ''
-id = string.split(os.popen('git log').readline())[-1]
-cmd = 'git tag %s %s' % (tagname, id)
-print cmd
+cmd = 'git tag %s' % tagname
+print(cmd)
 os.system(cmd)
 
-
+cmd = 'git push origin --tags'
+print(cmd)
+os.system(cmd)
 
