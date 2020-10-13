@@ -18,7 +18,7 @@ if pwd != "TheNtupleMaker":
 
 # Make scripts executable
 
-os.system("chmod +x bin/*.py")
+os.system("chmod +x scripts/*.py")
 
 if "CMSSW_BASE" not in os.environ:
         sys.exit("\t* Please remember \n\t\tcmsenv\n")
@@ -49,11 +49,11 @@ else:
 
 # Now execute initialization commands
 
-cmd = "bin/mkclassmap.py " + withCMG
+cmd = "scripts/mkclassmap.py " + withCMG
 print(cmd)
 os.system(cmd)
 
-cmd = "bin/mkclasslist.py"
+cmd = "scripts/mkclasslist.py"
 print(cmd)
 os.system(cmd)
 
