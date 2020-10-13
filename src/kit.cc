@@ -19,10 +19,8 @@
 //
 //
 //-----------------------------------------------------------------------------
-#ifdef PROJECT_NAME
 #include <Python.h>
-#include <boost/python.hpp>
-#endif
+#include <boost/regex.hpp>
 #include <sstream>
 #include <cassert>
 #include <string>

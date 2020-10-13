@@ -21,7 +21,7 @@
      to be given to the corresponding variables in the output n-tuple. The
      default naming scheme is
      
-                stripped-classname + "_" + getByLabel + "." + method
+      stripped-classname + "_" + getByToken label + "." + stripped-method name
 
      (B) Mechanism
 
@@ -66,133 +66,57 @@
 //                   Wed Dec 17 2014 HBP - split branchname creation from
 //                                   buffer creation (in anticipation of
 //                                   move to Root 6)
+//                   Thu Oct 08 2020 HBP - rebuild using ROOT JIT compiler
+//
 // $Id: TheNtupleMaker.cc,v 1.23 2013/07/05 07:15:14 prosper Exp $
 // ---------------------------------------------------------------------------
-#include <boost/regex.hpp>
-#include <memory>
-#include <iostream>
-#include <fstream>
-#include <cassert>
-#include <set>
-#include <time.h>
-#include <stdlib.h>
-
-#include "FWCore/Utilities/interface/Exception.h"
-#include "FWCore/Framework/interface/Frameworkfwd.h"
-#include "FWCore/Framework/interface/EDAnalyzer.h"
-#include "FWCore/Framework/interface/MakerMacros.h"
-#include "FWCore/FWLite/interface/AutoLibraryLoader.h"
-#include "FWCore/MessageLogger/interface/MessageLogger.h"
-
-#include "PhysicsTools/TheNtupleMaker/interface/treestream.h"
-#include "PhysicsTools/TheNtupleMaker/interface/kit.h"
-#include "PhysicsTools/TheNtupleMaker/interface/pluginfactory.h"
-#include "PhysicsTools/TheNtupleMaker/interface/CurrentEvent.h"
-#include "PhysicsTools/TheNtupleMaker/interface/Configuration.h"
-
-#include "FWCore/Framework/interface/Event.h"
-#include "FWCore/ParameterSet/interface/ParameterSet.h"
-#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
-
-
-#include "TROOT.h"
-#include "TSystem.h"
-#include "TMap.h"
-#include "TString.h"
-#include "TApplication.h"
+#include "PhysicsTools/TheNtupleMaker/interface/TheNtupleMaker.h"
+#include "DataFormats/PatCandidates/interface/Flags.h"
 // ---------------------------------------------------------------------------
 using namespace std;
 // ---------------------------------------------------------------------------
-class TheNtupleMaker : public edm::EDAnalyzer 
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
+  cfg(iConfig), 
+  //ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")),
+  tree(fs->make<TTree>("Events", 
+			 string("created by TheNtupleMaker " 
+			 + TNM_VERSION).c_str())),
+  buffers(std::vector<BufferThing*>()),
+  swatch(TStopwatch()),
+  maxEvents(-1),//iConfig.getParameter<int>("maxEvents")),
+  macroname_(""),
+  count_(0),
+  imalivecount_(1000),
+  logger_(0),
+  haltlogger_(false),
+  macroEnabled_(false),
+  inputCount_(0),
+  HLTconfigured(false),
+
+  className_(vector<string>()),
+  blockName_(vector<string>()),
+  bufferName_(vector<string>()),
+  label_(vector<string>()),
+  prefix_(vector<string>()),
+  maxcount_(vector<int>()),
+  branchset(set<string>())
 {
-public:
-  explicit TheNtupleMaker(const edm::ParameterSet&);
-  ~TheNtupleMaker();
+  cout << BOLDYELLOW << "\nTheNtupleMaker Configuration"
+       << endl 
+       << "maxEvents: " << maxEvents
+       << DEFAULT_COLOR << endl; 
 
-private:
-  virtual void beginJob();
-  virtual void beginRun(const edm::Run&, const edm::EventSetup&);
-  virtual void analyze(const edm::Event&, const edm::EventSetup&);
-  virtual void endJob();
-
-  bool selectEvent(const edm::Event& iEvent);
-  //void shrinkBuffers();
-  void updateTriggerBranches(int blockindex);
-
-  // Object that models the output n-tuple.
-  std::string ntuplename_;
-  otreestream output;
-
-  // Object that models the allocated buffers, one per object to be read.
-  std::vector<BufferThing*> buffers;
-
-  // addresses of buffers
-  std::map<std::string, BufferThing*> buffermap;
-
-  // map from variables to buffer location and count
-  std::map<std::string, countvalue>   varmap;
-
-  // map from object name to object index (used for selecting objects to be
-  // stored)
-  std::map<std::string, std::vector<int> >   indexmap;
-
-  int DEBUG;
-  std::string analyzername_;
-  std::string macroname_;
-
-  int count_;
-  int imalivecount_;
-  int logger_;
-  bool haltlogger_;
-  bool macroEnabled_;
-
-  TTree* ptree_;
-  int inputCount_;
-
-  // cache for HLT
-  edm::InputTag triggerResults_;
-  HLTConfigProvider HLTconfig_;
-  bool HLTconfigured;
-  std::vector<std::string> triggerNames_;
-
-  // cache decoded config data
-  std::vector<std::string> blockName_;
-  std::vector<std::string> bufferName_;
-  std::vector<std::string> label_;
-  std::vector<std::string> prefix_;
-  std::vector<int> maxcount_;
-  std::vector<std::map<std::string, std::string> > parameters_;
-  std::vector<std::vector<VariableDescriptor> > variables_;
-
-  bool buffersInitialized;
-};
-
-
-TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
-  : ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")), 
-    output(otreestream(ntuplename_,
-                       "Events", 
-                       "created by TheNtupleMaker $Revision: 1.23 $")),
-    macroname_(""),
-    count_(0),
-    imalivecount_(1000),
-    logger_(0),
-    haltlogger_(false),
-    macroEnabled_(false),
-    inputCount_(0),
-    HLTconfigured(false),
-    buffersInitialized(false)
-{
-  cout << "\nBEGIN TheNtupleMaker Configuration" << endl;
-
-  string cfg = string(iConfig.dump());
+  string config = string(iConfig.dump());
 
   // --------------------------------------------------------------------------
   // Add a provenance tree to ntuple
   // --------------------------------------------------------------------------
-  TFile* file = output.file();
+  TFile* file = tree->GetCurrentFile();
   ptree_ = new TTree("Provenance",
-                     "created by TheNtupleMaker $Revision: 1.23 $");
+                     string("created by TheNtupleMaker " 
+			    + TNM_VERSION).c_str());
   string cmsver("unknown");
   if ( getenv("CMSSW_VERSION") > 0 ) cmsver = string(getenv("CMSSW_VERSION"));
   ptree_->Branch("cmssw_version", (void*)(cmsver.c_str()), "cmssw_version/C");
@@ -209,9 +133,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
   if ( getenv("USER") > 0 ) username = string(getenv("USER"));
   ptree_->Branch("username", (void*)(username.c_str()), "username/C");
 
-  if ( cfg != "" ) ptree_->Branch("cfg", (void*)(cfg.c_str()), "cfg/C");
-
-  //ptree_->Branch("inputcount", &inputCount_, "inputcount/I");
+  if ( config != "" ) ptree_->Branch("cfg", (void*)(config.c_str()), "cfg/C");
 
   // Ok, fill this branch
   file->cd();
@@ -219,7 +141,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
 
   // --------------------------------------------------------------------------
   // Cache global configuration
-  Configuration::instance().set(iConfig);
+  Configuration::instance().set(cfg);
     
   // Get optional configuration parameters
 
@@ -242,14 +164,14 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
 
   // Save Tree header and branch buffers after every autosaveCount Mbytes
   // have been written to file. Default is 100 Mbytes.
-  int autosaveCount = 100;
-  try
-    {
-      autosaveCount = iConfig.getUntrackedParameter<int>("autosaveCount");
-    }
-  catch (...)
-    {}
-  output.autosave(autosaveCount);
+  // int autosaveCount = 100;
+  // try
+  //   {
+  //     autosaveCount = iConfig.getUntrackedParameter<int>("autosaveCount");
+  //   }
+  // catch (...)
+  //   {}
+  //output.autosave(autosaveCount);
 
   try
     {
@@ -269,7 +191,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       analyzername_ = "";
     }
 
-  // Get name of optional macro
+  // Get name of optional macro (to be replaced with ADL)
   try
     {
       macroname_ = kit::nameonly(iConfig.
@@ -284,45 +206,45 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
 
   macroEnabled_ = macroname_ != "";
 
-  if ( macroEnabled_ )
-    {
-      // Try to load associated shared library 
+  // if ( macroEnabled_ )
+  //   {
+  //     // Try to load associated shared library 
 
-      // First find shared lib
-      string filestem = string("*") + macroname_ + string("*.so");
-      string cmd = string("find . -name \"") + filestem + "\"";
-      string shlib = kit::shell(cmd);
-      if ( shlib == "" )
-        {
-          string errmess = string("\tfind ") + filestem + string(" failed");
-          // Have a tantrum!
-          throw cms::Exception("FileNotFound", errmess);
-        }
+  //     // First find shared lib
+  //     string filestem = string("*") + macroname_ + string("*.so");
+  //     string cmd = string("find . -name \"") + filestem + "\"";
+  //     string shlib = kit::shell(cmd);
+  //     if ( shlib == "" )
+  //       {
+  //         string errmess = string("\tfind ") + filestem + string(" failed");
+  //         // Have a tantrum!
+  //         throw cms::Exception("FileNotFound", errmess);
+  //       }
 
-      // Found shared library, so try to load it
+  //     // Found shared library, so try to load it
 
-      cout << "\t==> Load macro library " << shlib << endl;
+  //     cout << "\t==> Load macro library " << shlib << endl;
       
-      if ( gSystem->Load(shlib.c_str()) != 0 )
-         throw cms::Exception("LoadFailed",
-                              "\tfor shared library\n\t\t" + shlib);
+  //     if ( gSystem->Load(shlib.c_str()) != 0 )
+  //        throw cms::Exception("LoadFailed",
+  //                             "\tfor shared library\n\t\t" + shlib);
 
-      // Create commands to execute macro using CINT
+  //     // Create commands to execute macro using CINT
 
-      string treecmd("TTree* tree = (TTree*)0x%lx"); 
-      gROOT->ProcessLine(Form(treecmd.c_str(),(unsigned long)(output.tree())));
+  //     string treecmd("TTree* tree = (TTree*)0x%lx"); 
+  //     gROOT->ProcessLine(Form(treecmd.c_str(),(unsigned long)(output.tree())));
 
-      string mapcmd("map<string,countvalue>* "
-                    "varmap = (map<string,countvalue>*)0x%lx");
-      gROOT->ProcessLine(Form(mapcmd.c_str(), (unsigned long)(&varmap)));
+  //     string mapcmd("map<string,countvalue>* "
+  //                   "varmap = (map<string,countvalue>*)0x%lx");
+  //     gROOT->ProcessLine(Form(mapcmd.c_str(), (unsigned long)(&varmap)));
 
-      string imapcmd("map<string,vector<int> >* "
-                     "indexmap = (map<string,vector<int> >*)0x%lx");
-      gROOT->ProcessLine(Form(imapcmd.c_str(), (unsigned long)(&indexmap)));
+  //     string imapcmd("map<string,vector<int> >* "
+  //                    "indexmap = (map<string,vector<int> >*)0x%lx");
+  //     gROOT->ProcessLine(Form(imapcmd.c_str(), (unsigned long)(&indexmap)));
 
-      string macrocmd = macroname_ + string(" obj(tree,varmap,indexmap);");
-      gROOT->ProcessLine(macrocmd.c_str());
-    }
+  //     string macrocmd = macroname_ + string(" obj(tree,varmap,indexmap);");
+  //     gROOT->ProcessLine(macrocmd.c_str());
+  //   }
 
   if ( getenv("DBTheNtupleMaker") > 0 )
     DEBUG = atoi(getenv("DBTheNtupleMaker"));
@@ -330,20 +252,21 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
     DEBUG = 0;
 
   // --------------------------------------------------------------------------
+  // Decode buffer information and cache info. The buffers are created in this
+  // constructor. However, some variables for triggers are added in
+  // beginRun() as edmTriggerResultsHelper needs at least one event in memory.
   //
-  // Decode buffer information and cache it. The buffers are created during
-  // the first call to beginRun(). This is necessary for those buffers, such
-  // as edmTriggerResultsHelper that need at least one event in memory.
-  //
-  // Each buffer descriptor (a series of strings) comprises
-  // One line containing
-  //    buffer     - name of buffer to allocate
-  //    label      - used by getByLabel
+  // Each buffer (aka block) descriptor comprises a string containing
+  //    className  - EDM class (or simple type)
+  //    label      - getByToken iput tag
   //    maxcount   - maximum number of objects to write out. If omitted,
-  //                 assumed to be unity
+  //                 assumed to be unity and therefore a singleton object.
   //    [prefix]   - prefix for names of n-tuple output variables
-  //                 otherwise, take prefix = <buffer>_<label>
-  // followed by the list of methods
+  //                 otherwise take prefix = <bufferName>_<label>, where
+  //                 bufferName is derived from className: reco::PFJets
+  //                 becomes recoPFJets
+  //    Followed by a list of methods. However, if className is a simple
+  //    type, there are no methods.
   // 
   // Helper methods may optionally contain strings with the format
   //   parameter parameter-name = parameter-value
@@ -354,95 +277,140 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
   boost::regex getmethod("[a-zA-Z][^ ]*[(].*[)][^ ]*|[a-zA-Z][a-zA-Z0-9]*$");
   boost::smatch matchmethod;
 
-  boost::regex getparam("^ *param +");
+  boost::regex  getparam("^ *param +");
   boost::smatch matchparam;
 
-  boost::regex getvarprefix("(?<=/)[a-zA-Z0-9]+");
+  boost::regex  getvarprefix("(?<=/)[a-zA-Z0-9]+");
   boost::smatch matchvarprefix;
 
-  boost::regex getlabel("[a-zA-Z0-9]+(?=/)");
+  boost::regex  getlabel("[a-zA-Z0-9]+(?=/)");
   boost::smatch matchlabel;
 
-  boost::regex getrange("[0-9]+[.][.]+[0-9]+");
+  boost::regex  getrange("[0-9]+[.][.]+[0-9]+");
   boost::smatch matchrange;
 
-  boost::regex getstrarg("(?<=[(]\").+(?=\"[)])");
+  boost::regex  getstrarg("(?<=[(]\").+(?=\"[)])");
   boost::smatch matchstrarg;
 
-  // get list of strings from "objects", decode them, and cache the results
-  // NOTE: Within TNM, block and object are used interchangeably
+  boost::regex  getnspace("^(edm|reco|pat|l1extra|trigger)");
+  boost::smatch matchnspace;
   // --------------------------------------------------------------------------
-  vector<string> vrecords;
-  try
-    {
-      vrecords = iConfig.getUntrackedParameter<vector<string> >("objects");
-    }
-  catch (...)
-    {
-      vrecords = iConfig.getUntrackedParameter<vector<string> >("buffers");
-    }
+  // get list of strings from buffer, decode them, and cache the results
+  // NOTE: within TNM, block and buffer are used interchangeably
+  // --------------------------------------------------------------------------
+  vector<string> vrecords = cfg.
+    getUntrackedParameter<vector<string> >("buffers");
 
   for(unsigned ii=0; ii < vrecords.size(); ii++)
     {
-      // We must distinguish between the block name and the buffer name
-      // because multiple blocks can map to the same buffer name
-      // The block name will be used as the name of the C++ struct
-      // 
+      // The buffer (block) name will be used as the name of the C++ struct, 
+      // if one is created.
       string blockName = vrecords[ii];
 
-      if ( DEBUG > 1 ) 
-        cout << "BLOCK(" << blockName  << ")" << endl; 
+      if ( DEBUG > 0 ) 
+        cout << BOLDWHITE << "BUFFER(" << blockName  << ")" 
+	     << DEFAULT_COLOR 
+	     << endl; 
       
-      // Get description for current buffer of variables
-      vector<string> bufferrecords = iConfig.
+      // Get description of variables for current buffer
+      vector<string> bufferrecords = cfg.
         getUntrackedParameter<vector<string> >(blockName);
 
-      // Decode first record which should
-      // contain the buffer name, getByLabel and max count, with
-      // the exception of buffer edmEvent, which requires only the
-      // first field
+      // ----------------------------------------------------------------
+      // Decode first record which should contain the EDM class name,
+      // getByToken label and max count, with the exception of 
+      // buffer Event, which requires only the first field, 
+      // namely edm::Event or if we have a simple type.
+      // ----------------------------------------------------------------
       string record = bufferrecords[0];
 
-      // If current buffer is a Helper, create a parameter set specific to
-      // the Helper 
+      // If current buffer is a Helper, create a parameter set specific
+      // to the Helper. 
 
-      // Structure containing information about the methods to be called.
+      // Structure containing information about the methods to be called
+      // for current buffer.
       vector<VariableDescriptor> var;
 
+      // Split first record into fields
       vector<string> field;
       kit::split(record, field);
 
-      string bufferName = field[0];
+      // The bufferName is the className stripped of "::"
+      string className = field[0]; // EDM classname
+      string bufferName= kit::replace(className, "::", "");
 
       if ( DEBUG > 0 )
-        cout << "  buffer: " << bufferName << endl;
+        cout << "  className: " 
+	     << BOLDCYAN << className
+	     << DEFAULT_COLOR
+	     << "\tbufferName: " 
+	     << BOLDYELLOW << bufferName
+	     << DEFAULT_COLOR 
+	     << endl;
       
-      // The first part of the branch name associated with a method is
-      // the same as the buffer name, which basically identifies the
-      // associated class
+      // if bufferName is a simple type, then there are no methods.
+      boost::regex getsimpletype("^(float|double|int|long|unsigned"
+				 "|size_t|short|bool|char|string|std::string)");
+      boost::smatch matchtype;
+      std::string bufferName_lower = bufferName;
+      boost::algorithm::to_lower(bufferName_lower);
+      bool simpletype = boost::regex_search(bufferName_lower, 
+					    matchtype, getsimpletype);
 
-      string label("");
-      string prefix = bufferName;
+      // ----------------------------------------------------------------
+      // In the ROOT 5 version of TNM, the bufferName is given, not 
+      // the className, so we need to extract the className from the 
+      // bufferName to maintain backwards compatibility.
+      // ----------------------------------------------------------------
+      if ( !simpletype and (className == bufferName) )
+	{
+	  if ( boost::regex_search(bufferName, matchnspace, getnspace) )
+	    {
+	      string nspace = matchnspace[0];
+	      className = kit::replace(bufferName, nspace, nspace+string("::"));
+	    }
+	  else
+            // Have a tantrum!
+            throw edm::Exception(edm::errors::Configuration,
+                                 "cfg error: " + BOLDRED +
+                                 "unable to translate " +
+				 bufferName + 
+				 " to class name"
+				 " or a simple type" + DEFAULT_COLOR);
+	}
+
+      if ( DEBUG > 0 )
+        cout << "  className: " 
+	     << BOLDGREEN << className
+	     << DEFAULT_COLOR
+	     << "\tbufferName: " 
+	     << BOLDYELLOW << bufferName
+	     << DEFAULT_COLOR 
+	     << endl;
+      
+      // The bufferName is the first part of the branch name associated 
+      // with a method unless bufferName is a simple type.
+      string prefix = "";
+      if ( !simpletype ) prefix = bufferName;
       string varprefix = "";
+      string label("");
       int maxcount=1;
 
-      // edmEventHelper does not use getByLabel since it is just a 
-      // helper for edm::Event. So don't crash if there is no
-      // getByLabel
-
+      // edm::EventHelper does not use getByToken since it is just a 
+      // helper for edm::Event. So don't crash if there is no label
       if ( bufferName.substr(0,8) != "edmEvent" )
         {
           if ( field.size() < 3 )
             // Have a tantrum!
             throw edm::Exception(edm::errors::Configuration,
-                                 "cfg error: "
+                                 "cfg error: " + BOLDRED + 
                                  "you need at least 3 fields in first line of"
                                  " each buffer\n"
                                  "\tyou blocks you stones you worse than "
-                                 "senseless things...");
+                                 "senseless things..." + DEFAULT_COLOR);
         }
 
-      // getByLabel
+      // getByToken label (category)
       if ( field.size() > 1 ) label = field[1];
       if ( boost::regex_search(record, matchvarprefix, getvarprefix) )
         {
@@ -455,17 +423,21 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
           else
             // Have a tantrum!
             throw edm::Exception(edm::errors::Configuration,
-                                 "cfg error: "
-                                 "check getByLabel\n"
-                                 "expected <label>/<prefix>");
+                                 "cfg error: " + BOLDRED +
+                                 "check getByToken, "
+                                 "expected <label>[/<prefix>]"+DEFAULT_COLOR);
         }
 
-      // max object count to store
+      // max object count to store. this also determines whether we have
+      // a singleton or a vector
       if ( field.size() > 2 ) maxcount  = atoi(field[2].c_str());  
 
       // n-tuple variable prefix
       if ( field.size() > 3 ) 
-        prefix = field[3]; 
+        prefix = field[3];
+      else if ( prefix == "" )
+        // replace double colon with an "_"
+        prefix = kit::replace(label, "::", "_");       
       else if (label != "")
         // replace double colon with an "_"
         prefix += string("_") + kit::replace(label, "::", "_");
@@ -473,16 +445,15 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       // Modify variable name by (optional) varprefix
       if ( varprefix != "" ) prefix +=  "_" + varprefix;
 
-      //DB
       if ( DEBUG > 1 )
         cout 
           << "   block " << blockName << "("
-          << RED  
+          << BOLDCYAN  
           << bufferName 
-          << BLACK 
+          << DEFAULT_COLOR 
           << ")"
           << " label("    
-          << BLUE 
+          << BOLDGREEN 
           << label 
           << DEFAULT_COLOR 
           << ")"
@@ -490,172 +461,183 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
           << " prefix("   << prefix << ")"
           << endl;
       
+      // ----------------------------------------------------------------------
       // Loop over requested methods for current buffer.
-      // The first of the pair is the method name.
-      // The second of the pair is the name of the associated output variable.
+      // The first of the pair is the method name. The second element 
+      // of the pair is the name of the associated output variable.
       // If the latter is omitted, it is assumed to be the same as the
       // method name.
-
+      //
       // Optionally, the buffer can have parameters given as a key value
       // pair, e.g.:
       //
       // param coneSize = 0.7
-      // 
+      // ----------------------------------------------------------------------
+
       std::map<std::string, std::string> parameters;
 
-      unsigned int index = 0;
-      while ( index < bufferrecords.size()-1 )
-        {
-          index++;
+     if ( simpletype )
+	{
+	  var.push_back(VariableDescriptor(bufferName, "", ""));
+	}
+      else
+	{
+	  // We have a non-simple type, so we expect methods or attributes.
+	  unsigned int index = 0;
+	  while ( index < bufferrecords.size()-1 )
+	    {
+	      index++;
 
-          string record = bufferrecords[index];
-          if ( DEBUG > 0 )
-            cout << "record:   (" << RED << record << DEFAULT_COLOR << ")" 
-                 << endl;
+	      string record = bufferrecords[index];
+	      if ( DEBUG > 1 )
+		cout << "\trecord:   (" << BOLDRED << record 
+		     << DEFAULT_COLOR << ")" 
+		     << endl;
 
-          // Check for a Helper parameter
+	      // Check for a Helper parameter
+	      if ( boost::regex_search(record, matchparam, getparam) )
+		{
+		  std::string param = kit::replace(record,
+						   matchparam[0], "");
+		  string key, value;
+		  kit::bisplit(param, key, value, "=");
+		  key   = kit::strip(key);
+		  value = kit::strip(value);
+		  parameters[key] = value;
+		  continue;
+		}
 
-          if ( boost::regex_search(record, matchparam, getparam) )
-            {
-              std::string param = kit::replace(record,
-                                               matchparam[0], "");
-              string key, value;
-              kit::bisplit(param, key, value, "=");
-              key   = kit::strip(key);
-              value = kit::strip(value);
-              parameters[key] = value;
-              continue;
-            }
+	      // Get method
+	      if ( ! boost::regex_search(record, matchmethod, getmethod) ) 
+		// Throw another tantrum!
+		throw edm::Exception(edm::errors::Configuration,
+				     "regex error: " + BOLDRED +
+				     "I can't get method name from \n" +
+				     DEFAULT_COLOR +
+				     record);
+	      string method = kit::strip(matchmethod[0]);
+	      if ( DEBUG > 2 )
+		cout << "METHOD(" 
+		     << BOLDYELLOW << method << DEFAULT_COLOR 
+		     << ")" << endl;
 
-          // Get method
-      
-          if ( ! boost::regex_search(record, matchmethod, getmethod) ) 
-            // Yet another tantrum!
-            throw edm::Exception(edm::errors::Configuration,
-                                 "regex error: "
-                                 "I can't get method name from \n" +
-                                 record);
-          string method = kit::strip(matchmethod[0]);
-          if ( DEBUG > 0 )
-            cout << "METHOD(" 
-                 << BLUE << method << DEFAULT_COLOR 
-                 << ")" << endl;
+	      // Get optional method alias name
+	      string varname = method;
+	      // --------------------------------------------------------------
+	      // If a method consists of method("somestring")
+	      // then make its default name "somestring",
+	      // except for prescale methods for which the string is
+	      // typically the same as that of a trigger. 
+	      // However, if the method is a compound method use the
+	      // standard default
+	      // --------------------------------------------------------------
+	      if ( boost::regex_search(method, matchstrarg, getstrarg) ) 
+		{
+		  varname = matchstrarg[0];
+		  if ( method.substr(0,8) == "prescale" )
+		    varname = "prescale" + varname;
+		}
 
-          // Get optional method alias name
+	      // Check for an alias
+	      // The left sub-string is the return type of the method
+	      // The right sub-string is the optional alias
+
+	      string left, right;
+	      kit::bisplit(record, left, right, method);
+
+	      string rtype = kit::strip(left);
+	      right = kit::strip(right);
+	      if ( right != "" )  varname = right;
+
+	      // --------------------------------------------------------------
+	      // Check for range syntax n...m in method. If found, replace
+	      // current method by a list of methods. For now, deal
+	      // with only a single range variable. Remember to update the
+	      // associated variable name.
+	      // --------------------------------------------------------------
+	      int startrange=0;
+	      int endrange=0;
+	      string range("");
+	      if ( boost::regex_search(method, matchrange, getrange) )
+		{
+		  // decode range
+		  range = matchrange[0];
+		  if ( DEBUG > 0 )
+		    cout << " RANGE(" << BOLDBLUE << range << ") " 
+			 << DEFAULT_COLOR
+			 << method
+			 << endl;
+		  string str = kit::replace(range, ".", " ");
+		  vector<string> vstr;
+		  kit::split(str, vstr);
+		  startrange = atoi(vstr[0].c_str());
+		  endrange   = atoi(vstr[1].c_str());
+
+		  if ( DEBUG > 0 )
+		    cout << "  START: (" << BOLDBLUE << startrange 
+			 << DEFAULT_COLOR
+			 << ")" << endl
+			 << "  END:   (" << BOLDBLUE << endrange 
+			 << DEFAULT_COLOR
+			 << ")" << endl;
+		}
           
-          string varname = method;
-          
-          // If a method consists of method("somestring")
-          // then make its default name "somestring",
-          // except for prescale methods for which the string is
-          // typically the same as that of a trigger. 
-          // However, if the method is a compound method use the
-          // standard default
-
-          if ( boost::regex_search(method, matchstrarg, getstrarg) ) 
-            {
-              varname = matchstrarg[0];
-              if ( method.substr(0,8) == "prescale" )
-                varname = "prescale" + varname;
-            }
-
-          // Check for an alias
-          // The left sub-string is the return type of the method
-          // The right sub-string is the optional alias
-
-          string left, right;
-          kit::bisplit(record, left, right, method);
-
-          string rtype = kit::strip(left);
-          right = kit::strip(right);
-          if ( right != "" )  varname = right;
-
-          // Check for range syntax n...m in method. If found, replace
-          // current method by a list of methods. For now, deal
-          // with only a single range variable. Remember to update the
-          // associated variable name.
-
-          int startrange=0;
-          int endrange=0;
-          string range("");
-          if ( boost::regex_search(method, matchrange, getrange) )
-            {
-              // decode range
-              range = matchrange[0];
-              if ( DEBUG > 0 )
-                cout << " RANGE(" << BLUE << range << ") " 
-                     << DEFAULT_COLOR
-                     << method
-                     << endl;
-              string str = kit::replace(range, ".", " ");
-              vector<string> vstr;
-              kit::split(str, vstr);
-              startrange = atof(vstr[0].c_str());
-              endrange = atof(vstr[1].c_str());
-
-             if ( DEBUG > 0 )
-               cout << "  START: (" << BLUE << startrange << DEFAULT_COLOR
-                    << ")" << endl
-                    << "  END:   (" << BLUE << endrange << DEFAULT_COLOR
-                    << ")" << endl;
-            }
-          
-          if ( endrange == 0 )
-            {
-              // No range variable detected so just
-              // add to vector of variables
-              var.push_back(VariableDescriptor(rtype, method, varname));
+	      if ( endrange == 0 )
+		{
+		  // No range variable detected so just
+		  // add to vector of variables
+		  var.push_back(VariableDescriptor(rtype, method, varname));
               
-              if ( DEBUG > 0 )
-                cout << "   rtype:   " << RED   << rtype 
-                     << DEFAULT_COLOR << endl
-                     << "     method:  " << BLUE  << method 
-                     << DEFAULT_COLOR << endl
-                     << "       varname: " << GREEN << varname 
-                     << DEFAULT_COLOR << endl;
-            }
-          else
-            {
-              // Range variable detected
+		  if ( DEBUG > 0 )
+		    cout << "   rtype:   " << BOLDRED   << rtype 
+			 << DEFAULT_COLOR << endl
+			 << "     method:  " << BOLDCYAN  << method 
+			 << DEFAULT_COLOR << endl
+			 << "       varname: " << BOLDGREEN << varname 
+			 << DEFAULT_COLOR << endl;
+		}
+	      else
+		{
+		  // Range variable detected
 
-              string vname = kit::replace(varname, range, "");
-              string mname = method;
+		  string vname = kit::replace(varname, range, "");
+		  string mname = method;
 
-              for(int ind=startrange; ind <= endrange; ind++)
-                {
-                  char number[80];
-                  sprintf(number, "%d", ind);
+		  for(int ind=startrange; ind <= endrange; ind++)
+		    {
+		      char number[80];
+		      sprintf(number, "%d", ind);
 
-//                  if ( DEBUG > 0 )
-//                     cout << "   method:   " << RED   << method 
-//                          << DEFAULT_COLOR << endl
-//                          << "     range:  " << BLUE  << range 
-//                          << DEFAULT_COLOR << endl
-//                          << "       number: " << GREEN << number 
-//                          << DEFAULT_COLOR << endl;
+		      if ( DEBUG > 2 )
+			cout << "   method:   " << BOLDRED   << method 
+			     << DEFAULT_COLOR << endl
+			     << "     range:  " << BOLDCYAN  << range 
+			     << DEFAULT_COLOR << endl
+			     << "       number: " << BOLDGREEN << number 
+			     << DEFAULT_COLOR << endl;
 
-                  method  = kit::replace(mname, range, number);
-                  varname = vname + number; // update varname
+		      method  = kit::replace(mname, range, number);
+		      varname = vname + number; // update varname
 
-                  // Add to vector of variables
-                  var.push_back(VariableDescriptor(rtype, method, varname));
+		      // Add to vector of variables
+		      var.push_back(VariableDescriptor(rtype, method, varname));
                                                    
-              
-                  if ( DEBUG > 0 )
-                    cout << "   rtype:   " << RED   << rtype 
-                         << DEFAULT_COLOR << endl
-                         << "     method:  " << BLUE  << method 
-                         << DEFAULT_COLOR << endl
-                         << "       varname: " << GREEN << varname 
-                         << DEFAULT_COLOR << endl;
-                }
-            }
-        }
-      
-      // Decoding complete.
-
+		      if ( DEBUG > 0 )
+			cout << "   rtype:   " << RED   << rtype 
+			     << DEFAULT_COLOR << endl
+			     << "     method:  " << CYAN  << method 
+			     << DEFAULT_COLOR << endl
+			     << "       varname: " << GREEN << varname 
+			     << DEFAULT_COLOR << endl;
+		    }
+		}
+	    }
+	}
+      // ----------------------------------------------------------------------
+      // Decoding of current buffer complete.
       // Cache decoded buffer information
-
+      // ----------------------------------------------------------------------
+      className_.push_back(className);
       blockName_.push_back(blockName);
       bufferName_.push_back(bufferName);
       label_.push_back(label);
@@ -664,16 +646,143 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       variables_.push_back(var);
       maxcount_.push_back(maxcount);
     }
+
+  // ---------------------------------------------------------------
+  // Create branchnames.  Make sure to eliminate
+  // duplicates, but warn that this is being done 
+  // Block name is same as object name. variables_[i].branchname 
+  // will contain the branch name
+  // ---------------------------------------------------------------
+  // Write branches and variables to variables file 
+  
+  ofstream vout("variables.txt");
+  vout << "tree: Events " << ct << endl;
+  
+  for(size_t ii=0; ii < blockName_.size(); ii++)
+    createBranchnames(blockName_[ii],
+		      prefix_[ii],
+		      maxcount_[ii],
+		      variables_[ii],
+		      vout);
+  vout.close();
+
+  // --------------------------------------------------------------
+  // Create ntuple analyzer template if requested
+  // --------------------------------------------------------------
+  // if ( analyzername_ != "" )
+  //   {
+  //     string cmd("mkanalyzer.py "  + kit::nameonly(analyzername_));
+  //     cout << cmd << endl;
+  //     kit::shell(cmd);
+  //   }
+  
+  // ---------------------------------------------------------------
+  // Compile TheNtupleMaker header
+  // ---------------------------------------------------------------
+  char code[8000];
+  sprintf(code,
+	  "#include \"PhysicsTools/TheNtupleMaker/interface/"
+	  "TheNtupleMaker.h\"\n");
+  
+  cout << endl
+       << "Executing JIT compiler..."
+       << endl << endl;
+  cout << BOLDCYAN << code << DEFAULT_COLOR;
+  gROOT->ProcessLine(code);
+  
+  // --------------------------------------------------------------
+  // Loop over buffers (blocks), create an instance of each and
+  // compile it.
+  // --------------------------------------------------------------
+  long unsigned int objectaddr;
+  gROOT->ProcessLine("long unsigned int* objectaddr=0;\n");
+  
+  for(int ii=0; ii < (int)blockName_.size(); ii++)
+    {
+      if ( maxcount_[ii] > 1 )
+	sprintf(code, 
+		"Buffer< std::vector<%s> > \tbuffer%d;\n",
+		className_[ii].c_str(), ii);
+      else
+	sprintf(code, 
+		"Buffer< %s > \tbuffer%d;\n",
+		className_[ii].c_str(), ii);
+      
+      cout << "   " 
+	   << BOLDGREEN << code 
+	   << DEFAULT_COLOR;
+      
+      gROOT->ProcessLine(code);
+      
+      sprintf(code, 
+	      "objectaddr  = (long unsigned int*)%s;\n"
+	      "*objectaddr = (long unsigned int)&buffer%d;\n", 
+	      "0x%lx", ii);
+      gROOT->ProcessLine(Form(code, &objectaddr));
+	  
+      // Cache buffer address
+      buffers.push_back((BufferThing*)objectaddr);
+      
+      // Compile variables of current buffer
+      BufferThing* pbuffer = buffers.back();
+      for(int jj=0; jj < (int)variables_[ii].size(); jj++)
+	{
+	  sprintf(code, 
+		  "Variable< %s, %s > \tvar%d%d(\"%s\", %d, \"%s\");\n",
+		  className_[ii].c_str(),
+		  variables_[ii][jj].rtype.c_str(),
+		  ii, jj,
+		  variables_[ii][jj].method.c_str(),
+		  maxcount_[ii],
+		  variables_[ii][jj].branchname.c_str());
+
+	  cout << "\t" 
+	       << BOLDYELLOW << code 
+	       << DEFAULT_COLOR;
+	  gROOT->ProcessLine(code);
+
+	  sprintf(code, 
+		  "objectaddr  = (long unsigned int*)%s;\n"
+		  "*objectaddr = (long unsigned int)&var%d%d;\n", 
+		  "0x%lx", ii, jj);
+	  gROOT->ProcessLine(Form(code, &objectaddr));
+	      
+	  // Cache variable address in buffer
+	  pbuffer->add((VariableThing*)objectaddr);
+	}
+      
+      // Now initialize buffer
+      pbuffer->init(this, label_[ii]);
+    }
+
+  // // Check for crash switch
+  
+  // bool crash = false;
+  // try
+  //   {
+  //     crash = 
+  //       (bool)Configuration::instance().
+  //       getConfig()->getUntrackedParameter<int>("crashOnInvalidHandle");
+  //   }
+  // catch (...)
+  //   {}
+
+  // if ( crash )
+  //   cout << "\t==> TheNtupleMaker will CRASH if a handle is invalid <==";
+  // else
+  //   cout << "\t==> TheNtupleMaker will WARN if a product is not found <==";
+  // cout << endl << endl;
+
+  cout << "END TheNtupleMaker Configuration" << endl;
+
 }
 
 
 TheNtupleMaker::~TheNtupleMaker() {}
 
-
 // ----------------------------------------------------------------------------
 // member functions
 // ----------------------------------------------------------------------------
-
 
 // ------------ method called to for each event  ------------
 void
@@ -684,7 +793,7 @@ TheNtupleMaker::analyze(const edm::Event& iEvent,
   CurrentEvent::instance().set(iEvent, iSetup);
 
   // Call methods for each buffer
-  for(unsigned i=0; i < buffers.size(); i++) buffers[i]->fill(iEvent, iSetup);
+  for(size_t i=0; i < buffers.size(); i++) buffers[i]->get(iEvent);
 
   //inputCount_++;
   count_++;
@@ -693,16 +802,11 @@ TheNtupleMaker::analyze(const edm::Event& iEvent,
 
   // Apply optional cuts
 
-  if ( ! selectEvent(iEvent) ) return;
+  //if ( ! selectEvent(iEvent) ) return;
 
-  //Event kept. Shrink buffers as needed. Shrinking is needed if only
-  //certain objects of a given buffer have been selected.
+  // Fill output ntuple
 
-  //shrinkBuffers();
-
-  // Copy data to output buffers
-
-  output.commit();
+  tree->Fill();
 }
 
 bool
@@ -713,10 +817,10 @@ TheNtupleMaker::selectEvent(const edm::Event& event)
 
   // Initialize event variables in user macro
   // and reset indexmap
-  gROOT->ProcessLineFast("obj.initialize();");
+  // gROOT->ProcessLineFast("obj.initialize();");
 
   // Call macro analyze method
-  keep = (bool)gROOT->ProcessLineFast("obj.analyze();");  
+  //keep = (bool)gROOT->ProcessLineFast("obj.analyze();");  
       
   if ( DEBUG )
     {
@@ -812,9 +916,9 @@ TheNtupleMaker::updateTriggerBranches(int index)
   vector<VariableDescriptor>& var    = variables_[index];
   vector<VariableDescriptor>  varnew;
 
-  for(unsigned int jj=0; jj < var.size(); jj++)
+  for(size_t jj=0; jj < var.size(); jj++)
     {
-      if ( DEBUG > 0 )
+      if ( DEBUG > 2 )
         cout << "\tMETHOD("  << var[jj].method << ")" << endl;
 
       // extract string
@@ -832,7 +936,7 @@ TheNtupleMaker::updateTriggerBranches(int index)
           // no wild card characters found so just add to list
           // of variables and continue
           varnew.push_back(var[jj]);
-          if ( DEBUG > 0 )
+          if ( DEBUG > 2 )
             cout << "\tVARNAME(" << var[jj].varname << ")" << endl;
 
           continue;
@@ -849,10 +953,10 @@ TheNtupleMaker::updateTriggerBranches(int index)
       boost::regex getname(regex);
       boost::smatch matchname;
 
-      if ( DEBUG > 0 )
+      if ( DEBUG > 2 )
         cout << "\tREGEX(" << regex << ")" << endl;
 
-      for(unsigned  i=0; i < triggerNames_.size(); i++)
+      for(size_t i=0; i < triggerNames_.size(); i++)
         {
           if ( !boost::regex_search(triggerNames_[i], matchname, getname) )
             continue;
@@ -865,9 +969,8 @@ TheNtupleMaker::updateTriggerBranches(int index)
             varnew.back().varname = triggerNames_[i];
           varnew.back().method = kit::replace(varnew.back().method,
                                               argstr, triggerNames_[i]);
-          if ( DEBUG > 0 )
+          if ( DEBUG > 2 )
             cout << "\t\tMATCH(" << varnew.back().method << ")" << endl;
-      
         }
     }
 
@@ -879,7 +982,8 @@ TheNtupleMaker::updateTriggerBranches(int index)
 void 
 TheNtupleMaker::beginJob()
 {
-  if ( macroEnabled_ ) gROOT->ProcessLine("obj.beginJob();");
+  //if ( macroEnabled_ ) gROOT->ProcessLine("obj.beginJob();");
+  swatch.Start();
 }
 
 
@@ -887,13 +991,12 @@ void
 TheNtupleMaker::beginRun(const edm::Run& run, 
                          const edm::EventSetup& eventsetup)
 {
-  // Initialize the HLT configuration every new
-  // run
+  // Initialize the HLT configuration every new run
   // Based on some code from Josh
 
   if ( DEBUG > 0 )
     cout 
-      << "BEGIN Run: " << run.run() << endl;
+      << "BEGIN Run: " << BOLDYELLOW << run.run() << DEFAULT_COLOR << endl;
 
   try
     {
@@ -921,29 +1024,23 @@ TheNtupleMaker::beginRun(const edm::Run& run,
           unsigned int endrun   = run.run();
           set<string> nameset;
 
-          // If buffers have been initialized, read triggerNames.txt
-          // file and get saved trigger names
-
-          if ( buffersInitialized ) 
-            {
-              ifstream fin("triggerNames.txt");
-              if ( fin.good() )
-                {
-                  int n;
-                  string line;
-                  try
-                    {
-                      fin >> line >> line >> startrun; // get start run
-                      fin >> line >> line >> n;
-                      fin >> line >> line >> n;
-                    }
-                  catch (...)
-                    {}
-
-                  while ( fin >> line ) nameset.insert(line);
-                  fin.close();
-                }
-            }
+	  ifstream fin("triggerNames.txt");
+	  if ( fin.good() )
+	    {
+	      int n;
+	      string line;
+	      try
+		{
+		  fin >> line >> line >> startrun; // get start run
+		  fin >> line >> line >> n;
+		  fin >> line >> line >> n;
+		}
+	      catch (...)
+		{}
+	      
+	      while ( fin >> line ) nameset.insert(line);
+	      fin.close();
+	    }
 
           // Write out updated trigger names
           ofstream fout("triggerNames.txt");
@@ -990,178 +1087,166 @@ TheNtupleMaker::beginRun(const edm::Run& run,
   else
     Configuration::instance().set((HLTConfigProvider*)0);
 
-  // ---------------------------------------------------------------
-  // The code below is executed once at beginRun time
-  // ---------------------------------------------------------------
-  if ( buffersInitialized ) return;
-
-  buffersInitialized = true;
-  
-  // ---------------------------------------------------------------
-  // Create branchnames.  Make sure to eliminate
-  // duplicates, but warn that this is being done 
-  // Block name is same as object name. variables_[i].name will contain
-  // the branch name
-  // ---------------------------------------------------------------
-  // Write branches and variables to variables file 
-
-  ofstream vout("variables.txt");
-  time_t tt = time(0);
-  string ct(ctime(&tt));
-  vout << "tree: Events " << ct << endl;
-
-  set<string> branchset;
-  vector<string> counter(blockName_.size());
-  for(unsigned int i=0; i < blockName_.size(); i++)
-    {
-      if ( DEBUG > 0 )
-        cout << "block name(" << blockName_[i] << ")" << endl;
-
-      if ( bufferName_[i] == "edmTriggerResultsHelper" ) 
-        updateTriggerBranches(i);
-
-      createBranchnames(blockName_[i],
-			prefix_[i],
-			counter[i],
-			variables_[i],
-			maxcount_[i],
-			vout,
-			branchset,
-			DEBUG);
-    }
-  vout.close();
-  // ---------------------------------------------------------------
-  // Create ntuple analyzer template if requested
-  // ---------------------------------------------------------------
-  if ( analyzername_ != "" )
-    {
-      string cmd("mkanalyzer.py "  + kit::nameonly(analyzername_));
-      cout << cmd << endl;
-      kit::shell(cmd);
-    }
-
-  // ---------------------------------------------------------------
-  // Create buffers of appropriate type. 
-  // ---------------------------------------------------------------
-  if ( DEBUG > 0 )
-    cout << "CREATING Buffers"  << endl;
- 
-  for(unsigned int i=0; i < blockName_.size(); i++)
-    {
-      if ( DEBUG > 0 )
-        cout << "BLOCK NAME(" << blockName_[i] << ")" << endl;
-
-      // ---------------------------------------------------------------
-      // Note: ->create(...) returns an auto_ptr to BufferThing. 
-      // Ordinarily, an auto_ptr owns the object pointed to. But, a 
-      // push_back makes a copy of the thing pushed back. The act of 
-      // copying the auto_ptr, auto_ptr<BufferThing>, transfers 
-      // ownership of the object from the auto_ptr to the vector. 
-      // Consequently, in principle, it is up to the user of the 
-      // vector to deallocate the memory occupied by the buffer 
-      // objects when they are no longer needed. However, the plugin 
-      // mechanism assumes (not unreasonably) that it is in charge of 
-      // plugins and so is responsible for cleaning up allocated space.
-      // ---------------------------------------------------------------
-      if ( DEBUG > 0 )
-        cout 
-          << "  create buffer: " << bufferName_[i] << endl;
-
-      // First cache block name, buffer name and get by label so that 
-      // they are available when the buffer is created.
-
-      Configuration::instance().set(blockName_[i], 
-                                    bufferName_[i], 
-                                    label_[i], 
-                                    parameters_[i]);
-
-      buffers.push_back( BufferFactory::get()->create(bufferName_[i]) );
-      if (buffers.back() == 0)
-        throw cms::Exception("PluginLoadFailure")
-          << "\taaargh!...let all the evil "
-          << "that lurks in the mud hatch out\n"
-          << "\tI'm unable to create buffer " + bufferName_[i]; 
-
-      // ... and initialize it
-      buffers.back()->init(output,
-			   blockName_[i],
-                           label_[i], 
-			   counter[i],
-                           variables_[i], 
-                           maxcount_[i], 
-                           DEBUG);
-
-      // cache addresses of buffers
-      string key = buffers.back()->objectname();
-      buffermap[key] = buffers.back();
-
-      if ( DEBUG > 0 )
-        {
-          cout << DEFAULT_COLOR;
-          cout << "  buffer: " << bufferName_[i] 
-               << " created " << endl << endl;
-          cout << "  object: " << key        << " address " << buffermap[key] 
-               << endl << endl;
-        }
-    }
-
-
-  // Cache variable addresses for each buffer
-  // Make sure branch names are unique
-  int index=0;
-  cout << endl << endl << " BEGIN Branches " << endl;
-
-  for(unsigned int i=0; i < buffers.size(); ++i)
-    {
-      vector<string>& vnames = buffers[i]->varnames();
-      string objname = buffers[i]->objectname();
-      cout << endl << i+1 
-           << "\tobject: " << objname 
-           << "\taddress: " << buffermap[objname] << endl;
-
-      for(unsigned int ii=0; ii < vnames.size(); ++ii)
-        {
-          string name = vnames[ii];
-          varmap[name] = buffers[i]->variable(name);
-          index++;
-          cout << "  " << index 
-               << "\t" << name << endl;
-        }
-    }
-  cout << " END Branches" << endl << endl;
-
-  // Check for crash switch
-  
-  bool crash = true;
-  try
-    {
-      crash = 
-        (bool)Configuration::instance().
-        getConfig()->getUntrackedParameter<int>("crashOnInvalidHandle");
-    }
-  catch (...)
-    {}
-
-  if ( crash )
-    cout << "\t==> TheNtupleMaker will CRASH if a handle is invalid <==";
-  else
-    cout << "\t==> TheNtupleMaker will WARN if a handle is invalid <==";
-  cout << endl << endl;
-
-  cout << "END TheNtupleMaker Configuration" << endl;
-
   if ( DEBUG > 0 )
     cout 
       << "END Run: " << run.run() << endl;
+}
+
+void 
+TheNtupleMaker::createBranchnames(std::string blockName,    
+				  std::string prefix,
+				  int maxcount,
+				  std::vector<VariableDescriptor>& var,
+				  ofstream& vout)
+{
+  // Define regular expressions to check for compound methods; 
+  // i.e., methods of the form 
+  // 1. y = a()->b()
+  // 2. y = a().b()
+  // 3. y = a().b 
+  // 4. y = a()->b 
+  // 5. y = a.b()
+  // 6. y = a->b()
+
+  boost::regex stripargs("[(].*?[)]");
+  boost::regex stripme("-[>]|[.]|\"|[(]|[)]| |,|[<]|[>]");
+  boost::regex stripcolon("[a-zA-Z]+::");
+  boost::regex strip3_("___");
+  boost::regex strip2_("__");
+  boost::regex strip2_atend("_$");
+
+  // Just return if no variables were specified
+  
+  if ( var.size() == 0 ) 
+    {
+      std::cout 
+        << "** Warning! createBranchnames - no variables defined for  " 
+        << blockName
+        << std::endl;
+      return;
+    }
+  
+  if ( DEBUG > 0 )
+    std::cout << BOLDRED << blockName << DEFAULT_COLOR << std::endl;
+
+  // Define variables destined for the output tree  
+  // For every method, create the associated n-tuple branch name
+  int nvar = 0;
+  for(unsigned i=0; i < var.size(); i++)
+    {    
+      std::string rtype   = var[i].rtype;
+      std::string method  = var[i].method;
+      std::string varname = var[i].varname;
+      if ( DEBUG > 1 )
+        std::cout << BOLDCYAN
+                  << "   varname before(" << varname << ")"
+                  << DEFAULT_COLOR
+                  << std::endl;
+
+      // Replace "->", ".", "(", ")" and quotes by "_"
+      varname = boost::regex_replace(varname, stripme,  "_");
+
+      // Replace "___" by "_"
+      varname = boost::regex_replace(varname, strip3_,  "_");
+
+      // Replace "__" by "_"
+      varname = boost::regex_replace(varname, strip2_,  "_");
+
+      // Strip away possible "_" at the end 
+      varname = boost::regex_replace(varname, strip2_atend,  "");
+
+      if ( DEBUG > 1 )
+        std::cout << "        "
+                  << BOLDYELLOW 
+                  << "   varname after (" << varname << ")"
+                  << DEFAULT_COLOR
+                  << std::endl;      
+
+      // create branch name, but be mindful that we may be
+      // dealing with a simple time.
+      std::string  branchname = prefix;
+      if ( varname != "") branchname += "." + varname;
+
+      // check for uniqueness
+      if ( branchset.find(branchname) != branchset.end() )
+        {
+	  // the branchname is not unique, so make it so
+          std::string newbranchname =
+            prefix + "_" + blockName + "." + varname;
+            
+          edm::LogWarning("BranchnameNotUnique")
+            << "Fee fi fo fum\n"
+            << "I smell the blood of an Englishman\n"
+            << "Be he alive, or be he dead\n"
+            << "I'll grind his bones to make my bread\n"
+            << "This branch (" 
+            << BOLDRED << branchname 
+            << DEFAULT_COLOR << ") is NOT unique!\n"
+            << "Changed name to \n"
+            << BOLDBLUE << newbranchname
+            << DEFAULT_COLOR 
+            << std::endl;
+          branchname = newbranchname;
+        }
+      branchset.insert(branchname);
+
+      if ( varname == "" )
+	vout << rtype << "/" 
+	     << branchname  << "/"
+	     << blockName << "/"
+	     << maxcount 
+	     << std::endl;
+      else
+	vout << rtype << "/" 
+	     << branchname  << "/"
+	     << blockName + "_" + varname << "/"
+	     << maxcount 
+	     << std::endl;
+      
+      // Note: nvar <= i
+      var[nvar].branchname   = branchname;
+      var[nvar].maxcount   = maxcount;
+      var[nvar].method   = method;
+
+      if ( DEBUG > 1 )
+	std::cout << "   " << nvar << ":\t" << BOLDGREEN 
+		  << branchname 
+		  << "\t" << DEFAULT_COLOR << method << std::endl;
+      
+      // update variable count
+      nvar++;
+    }
+
+  // update size of var, if necessary
+  if ( nvar < (int)var.size() ) var.resize(nvar);
 }
 
 // --- method called once each job just after ending the event loop  ----------
 void 
 TheNtupleMaker::endJob() 
 {
-  if ( macroEnabled_ ) gROOT->ProcessLine("obj.endJob();");
+  char cmd[80];
+  float ms = swatch.RealTime();
+  if ( maxEvents > 0 )
+    {
+      ms = 1000 * ms / maxEvents;
+      sprintf(cmd, "%8.3f", ms);
+      cout << endl << BOLDYELLOW
+	   << "time/event: " << cmd << " ms" << DEFAULT_COLOR
+	   << endl << endl;
+    }
+  else
+    {
+      ms /= 60;
+      sprintf(cmd, "%8.3f", ms);
+      cout << endl << BOLDYELLOW
+	   << "elapsed time: " << cmd << " minutes" << DEFAULT_COLOR
+	   << endl << endl;
+    }
 
-  output.close();
+  //if ( macroEnabled_ ) gROOT->ProcessLine("obj.endJob();");
+
+  //output.close();
 }
 
 //define this as a plug-in

@@ -81,20 +81,16 @@ std::string shell(std::string cmd)
 
 outputFile::outputFile(std::string filename)
   : filename_(filename),
-    file_(new TFile(filename_.c_str(), "recreate")),
+    file(new TFile(filename_.c_str(), "recreate")),
     tree(0),
     b_weight_(0),
     entry_(0),
     SAVECOUNT_(50000),
     ev_(0)
 {
-  file_->cd();
+  file->cd();
   hist_ = new TH1F("counts", "", 1,0,1);
-#if ROOT_VERSION_CODE > ROOT_VERSION(6,0,0)
-  hist_->SetCanExtend(1); // Root 6
-#else
-  hist_->SetBit(TH1::kCanRebin);
-#endif
+  hist_->SetCanExtend(1);
   hist_->SetStats(0);
 }
 
@@ -102,7 +98,7 @@ outputFile::outputFile(std::string filename,
 		       eventBuffer& ev, 
 		       int savecount) 
   : filename_(filename),
-    file_(new TFile(filename.c_str(), "recreate")),
+    file(new TFile(filename.c_str(), "recreate")),
     tree(ev.input ? 
 	 ev.input->tree()->CloneTree(0) : 0),
     b_weight_(tree ? 
@@ -116,13 +112,9 @@ outputFile::outputFile(std::string filename,
 
   std::cout << "events will be skimmed to file "
 	    << filename_ << std::endl;
-  file_->cd();
+  file->cd();
   hist_ = new TH1F("counts", "", 1,0,1);
-#if ROOT_VERSION_CODE > ROOT_VERSION(6,0,0)
-  hist_->SetCanExtend(1); // Root 6
-#else
-  hist_->SetBit(TH1::kCanRebin);
-#endif
+  hist_->SetCanExtend(1);
   hist_->SetStats(0);
 }
 
@@ -133,8 +125,8 @@ void outputFile::write(double weight)
   if ( ev_ ) ev_->saveObjects();
 
   weight_ = weight;
-  file_   = tree->GetCurrentFile();
-  file_->cd();
+  file    = tree->GetCurrentFile();
+  file->cd();
   tree->Fill();
 
   entry_++;
@@ -154,12 +146,12 @@ void outputFile::close()
   if ( tree )
     {
       std::cout << "==> events skimmed to file " << filename_ << std::endl;
-      file_ = tree->GetCurrentFile();
+      file = tree->GetCurrentFile();
     }
-  file_->cd();
-  file_->Write("", TObject::kOverwrite);
-  file_->ls();
-  file_->Close();
+  file->cd();
+  file->Write("", TObject::kOverwrite);
+  file->ls();
+  file->Close();
 }
 
 commandLine::commandLine()

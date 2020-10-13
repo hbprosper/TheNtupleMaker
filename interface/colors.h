@@ -19,6 +19,7 @@ const std::string BOLDYELLOW("\x1b[1;33;48m");
 const std::string BOLDBLUE("\x1b[1;34;48m");
 const std::string BOLDMAGENTA("\x1b[1;35;48m");
 const std::string BOLDCYAN("\x1b[1;36;48m");
+const std::string BOLDWHITE("\x1b[1;37;48m");
 
 const std::string DEFAULT_COLOR("\x1b[0m");
 const std::string HOME_CURSOR("\x1b[0;0H");

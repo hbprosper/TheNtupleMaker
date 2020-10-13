@@ -46,7 +46,10 @@
 //          22-Nov-2010 Allow reading of multiple trees using friend
 //                      mechanism
 //          22-Nov-2011 Handle storing of strings
-//$Revision: 1.5 $
+//          01-Mar-2018 Fix chain/friend interactions (at 35,000 feet!)
+//          23-Sep-2018 split into itreestream.h and otreestream.h
+//          25-Sep-2018 HBP - go back to a single header to avoid problems
+//                      with mkanalyzer.py
 //----------------------------------------------------------------------------
 #include <vector>
 #include <string>
@@ -57,48 +60,53 @@
 #include <typeinfo>
 #include <cctype>
 
-
 #include "TFile.h"
 #include "TTree.h"
 #include "TLeaf.h"
 #include "TBranch.h"
 #include "TChain.h"
-
-/** \example readit.py
- */
-
+//----------------------------------------------------------------------------
 /// Model a name/value pair.
 struct Field
 {
   Field() 
-    : srctype(' '),
-      iotype(' '),
-      isvector(false),
-      iscounter(false),
-      maxsize(0),
-      branch(0),
-      leaf(0),
-      address(0),
-      branchname(""),
-      leafname(""),
-      fullname("")
+  : srctype(' '),
+    iotype(' '),
+    isvector(0),
+    iscounter(false),
+    skip(false),
+    maxsize(0),
+    chain(0),
+    branch(0),
+    leaf(0),
+    address(0),
+    treename(""),
+    branchname(""),
+    leafname(""),
+    fullname(""),
+    countername("")
   {}
   
   virtual ~Field() {}
   
   char   srctype;         /// Source type (type of user name/value pair)
   char   iotype;          /// Input/Output type
-  bool   isvector;        /// True if vector type
+  int    isvector;        /// 0 scaler, 1 vector, 2 2-d vector type
   bool   iscounter;       /// true if this is a leaf counter
+  bool   skip;            /// true: do not read data
   int    maxsize;         /// Maximum number of elements in source variable
+  int    size;            /// Size of field
   
+  TChain*  chain;         /// Chain to which this field is bound
   TBranch* branch;        /// Branch pertaining to source
   TLeaf*   leaf;          /// Leaf pertaining to source
   void*    address;       /// Source address
-  
+
+  std::string treename;   /// Tree name
   std::string branchname; /// Name of branch
   std::string leafname;   /// Name of T-leaf!
   std::string fullname;   /// Full name of branch/T-leaf!
+  std::string countername; /// Name of leaf counter or null
 };
 
 template <class T>
@@ -106,13 +114,13 @@ struct FieldBuffer : public Field
 {
   FieldBuffer() : Field(), value(std::vector<T>()) {}
   virtual ~FieldBuffer() {}
-  
   std::vector<T> value;
 };
 
 typedef std::map<std::string, Field>  Data;
-typedef std::map<std::string, Field*> SelectedData;
+typedef std::map<std::string, Field*>  SelectedData;
 
+//----------------------------------------------------------------------------
 
 /** Model an input stream of Root trees.
               The classes itreestream and otreestream provide a convenient 
@@ -162,16 +170,10 @@ class itreestream
       Note: <i>filename</i> is a string of one of more filenames, each of
       which can have wildcard characters.
   */
-  itreestream(std::string filename, int bufsize=1000);
+  itreestream(std::string filename, std::string treename="", int bufsize=1000);
 
   ///
-  itreestream(std::string filename, std::string treename, int bufsize=1000);
-
-  ///
-  itreestream(std::vector<std::string>& filenames, int bufsize=1000);
-
-  ///
-  itreestream(std::vector<std::string>& filenames, std::string treename,
+  itreestream(std::vector<std::string>& filenames, std::string treename="",
               int bufsize=1000);
 
   ///
@@ -230,9 +232,6 @@ class itreestream
   ///
   void   select(std::string namen, std::string& datum);
 
-//   ///
-//   void   select(std::string namen, std::string& datum);
-
   /** Specify the name of a vector-valued variable to be read and give the
       address of a buffer into which its values are to be written. 
       The size of the (vector) buffer determines the maximum number of elements
@@ -271,12 +270,41 @@ class itreestream
   ///
   void   select(std::string namen, std::vector<unsigned short>& data);
 
+
+  /** Specify the name of a vector-valued array variable to be read and give the
+      address of a buffer into which its values are to be written. 
+  */
+  void   select(std::string namen, std::vector<std::vector<double> >& data);
+
+  ///
+  void   select(std::string namen, std::vector<std::vector<float> >& data);
+  
+  ///
+  void   select(std::string namen, std::vector<std::vector<long> >& data);
+
+  ///
+  void   select(std::string namen, std::vector<std::vector<int> >& data);
+
+  ///
+  void   select(std::string namen, std::vector<std::vector<unsigned long> >& data);
+
+  ///
+  void   select(std::string namen, std::vector<std::vector<unsigned int> >& data);
+
+  
   /** Read tree with ordinal value <i>entry</i>. 
       Return the ordinal value of the
       entry within the current tree.
   */
   int    read(int entry);
 
+
+  /** Read tree starting at <i>entry</i> start. 
+      The number of rows returned is given by the size of the vector.
+      The number of vectors must match the number of branches selected.
+  */
+  void read(int start, std::vector<std::vector<double> >& v);
+  
   ///
   void   close();
 
@@ -306,6 +334,9 @@ class itreestream
 
   /// Return names of name/value pairs.
   std::vector<std::string> names();
+
+  /// Return names of trees.
+  std::vector<std::string> treenames();
 
   ///
   std::vector<double> vget();
@@ -338,8 +369,10 @@ class itreestream
   int     _index;
   std::vector<double> _buffer;
 
-  Data         data;
-  SelectedData selecteddata;
+  Data          data;
+  SelectedData  selecteddata;
+  
+  std::map<std::string, TChain*> _chainmap;
   
   int     _bufoffset;
   int     _bufcount;
@@ -349,21 +382,23 @@ class itreestream
   std::vector<int>          branchtab;
   std::vector<std::string>  filepath;
 
-  std::vector<TChain*> _chainlist;
-
   void _open(std::vector<std::string>& filenames, 
              std::vector<std::string>& treenames);
   void _getbranches(TBranch* branch, int depth);
   void _getleaf    (TBranch* branch, TLeaf* leaf=0);
   void _select     (std::string name, void* address, int maxsize, 
-                    char srctype, bool isvector=false);
+                    char srctype, int isvector=0);
   void _update();
-  std::string _gettree(TDirectory* dir, 
-		       std::string treename="", 
-		       int depth=0);
+  void _gettree(TDirectory* dir, int depth=0, std::string name="");
 
   bool _delete;
+  std::string _treename;
+  std::vector<std::string>  _treenames;
 };
+
+std::ostream& operator<<(std::ostream& os, const itreestream& tuple);
+
+//----------------------------------------------------------------------------
 
 /// Model an output stream of trees of the same species.
 class otreestream
@@ -394,37 +429,31 @@ class otreestream
   ///
   int    status();
 
-  /** Specify the name of a variable to be added to the tree and the address 
-      from which its value is to be read. 
-  */
-  void   add(std::string namen, double& datum, char iotype='D');
-
   ///
-  void   add(std::string namen, float& datum);
+  void   add(std::string namen, int& datum);
+  
+  ///
+  void   add(std::string namen, unsigned int& datum);
 
   ///
   void   add(std::string namen, long& datum);
 
   ///
-  void   add(std::string namen, int& datum);
-
-  ///
   void   add(std::string namen, short& datum);
-
+  
   ///
-  void   add(std::string namen, char& datum);
+  void   add(std::string namen, unsigned short& datum);
 
   ///
   void   add(std::string namen, bool& datum);
 
-  ///
-  void   add(std::string namen, unsigned long& datum);
+  /** Specify the name of a variable to be added to the tree and the address 
+      from which its value is to be read. 
+  */
+  void   add(std::string namen, double& datum);
 
   ///
-  void   add(std::string namen, unsigned int& datum);
-
-  ///
-  void   add(std::string namen, unsigned short& datum);
+  void   add(std::string namen, float& datum);
 
   ///
   void   add(std::string namen, std::string& datum);
@@ -437,12 +466,6 @@ class otreestream
       For a variable of fixed length use e.g., 
       JetEt[10].
   */
-  void   add(std::string namen, std::vector<double>& data, char iotype='D');
-
-  ///
-  void   add(std::string namen, std::vector<float>& data);
-
-  ///
   void   add(std::string namen, std::vector<long>& data);
 
   ///
@@ -452,19 +475,19 @@ class otreestream
   void   add(std::string namen, std::vector<short>& data);
 
   ///
-  void   add(std::string namen, std::vector<char>& data);
-
-  ///
   void   add(std::string namen, std::vector<bool>& data);
-
-  ///
-  void   add(std::string namen, std::vector<unsigned long>& data);
 
   ///
   void   add(std::string namen, std::vector<unsigned int>& data);
 
   ///
   void   add(std::string namen, std::vector<unsigned short>& data);
+
+  ///
+  void   add(std::string namen, std::vector<double>& data);
+
+  ///
+  void   add(std::string namen, std::vector<float>& data);
 
   ///
   void   add(std::string namen);
@@ -525,16 +548,15 @@ class otreestream
   std::vector<double> _databuf;
   int    _autosavecount;
 
-  SelectedData selecteddata;
+  std::map<std::string, Field*> selecteddata;
 
   std::vector<std::string>      branchname;
   std::vector<int*> strsize;
 
   void _add(std::string name, void* address, int maxsize,
-	    char srctype, char iotype, bool isvector=false);
+	    char srctype, char iotype, int isvector=0);
 };
 
-std::ostream& operator<<(std::ostream& os, const itreestream& tuple);
 std::ostream& operator<<(std::ostream& os, const otreestream& tuple);
 
 #endif

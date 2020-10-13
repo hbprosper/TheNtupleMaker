@@ -1,17 +1,18 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
+// ----------------------------------------------------------------------------
 //
 // Package:    PhysicsTools/TheNtupleMaker
 //             Configuration.h
 //
 //             A singleton object to make configuration info available
-//             to whoever needs it
+//             throughout the system.
 //
 // Original Author:  Harrison B. Prosper
 //         Created:  Wed Sep 01, 2010
 //
 // $Id: Configuration.h,v 1.5 2012/05/07 04:32:42 prosper Exp $
-
+// ----------------------------------------------------------------------------
 #include <string>
 #include <sstream>
 

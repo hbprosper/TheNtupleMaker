@@ -96,8 +96,5 @@
 <use   name="boost_regex"/>
 <use   name="rootminuit"/>
 <use   name="rootmath"/>
-<use   nam="rootrflx"/>
 
 <library   file="TheNtupleMaker.cc"></library>
-<library   file="TestMethod.cc"></library>
-<library   file="*plugin*.cc" name="bufferplugins"></library>

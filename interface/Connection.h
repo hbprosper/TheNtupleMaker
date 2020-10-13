@@ -8,10 +8,9 @@
 /////////////////////////////////////////////////////////////////////////
 //$Revision: 1.1.1.1 $
 
-#include <Python.h>
-#include "PhysicsTools/TheNtupleMaker/interface/Slot.h"
 #include <string>
-#include <TQObject.h>
+#include "TQObject.h"
+#include "PhysicsTools/TheNtupleMaker/interface/Slot.h"
 
 /** Model a signal/slot association.
     Many computing systems use the signal/slot model for associating a signal,

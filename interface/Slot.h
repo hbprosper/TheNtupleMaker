@@ -9,10 +9,10 @@
 /////////////////////////////////////////////////////////////////////////
 //$Revision: 1.2 $
 
-#include <Python.h>
+#include "TQObject.h"
 #include <string>
 #include <vector>
-#include "TQObject.h"
+#include <Python.h>
 
 /**
  */

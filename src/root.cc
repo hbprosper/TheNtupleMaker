@@ -58,6 +58,14 @@ root::LBEntry(TGListBox* listbox,
    return (TGLBEntry*)entry;
 }
 
+
+const TGWindow*
+root::GetRoot()
+{
+  return gClient->GetRoot();
+}
+
+
 TFileDialog::TFileDialog() {}
 
 TFileDialog::TFileDialog(const TGWindow* window, 

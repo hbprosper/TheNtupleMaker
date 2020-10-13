@@ -1,0 +1,25 @@
+/**	\mainpage
+
+	\section	intro	Introduction
+
+<b>TheNtupleMaker</b> is a sub-package of <b>PhysicsTools</b> that 
+contains an ntuple maker, implemented as an EDAnalyzer plugin called
+TheNtupleMaker. For detailed instructions see branch ROOT6 at
+<p>
+\url https://github.com/hbprosper/TheNtupleMaker
+
+	\version	v7.0.0
+	\date		October, 2020
+	\author		Harrison B. Prosper and Sezen Sekmen
+                <p>
+Department of Physics, Florida State University, USA<br>
+Department of Physics, Kyungpook National University, Korea<br>
+email: harry@hep.fsu.edu, Harrison.Prosper@cern.ch
+*/
+
+
+
+
+
+
+

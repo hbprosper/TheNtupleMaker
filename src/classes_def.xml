@@ -1,73 +1,16 @@
 <lcgdict>
-   <class name="std::vector<kit::MatchedPair>"/>
-   <class name="std::vector<kit::PtThing>"/>
-   <class name="std::vector<bool>"/>
-
    <class name="Connection"/>
    <class name="Slot"/>
-   <class name="kit"/>
-   <class name="kit::MatchedPair"/>
-   <class name="kit::PtThing"/>
-   <class name="pdg"/>
-   <class name="rfx"/>
    <class name="root"/>
    <class name="TFileDialog"/>
    <class name="THelpDialog"/>
-   <class name="ClassFunction"/>
-   <class name="ClassMembers"/>
    <class name="itreestream"/>
    <class name="otreestream"/>
-   <class name="ATestBase"/>
-   <class name="Aclass"/>
-   <class name="Bclass"/>
-   <class name="ATest"/>
-   <class name="MemoryHog"/>
-   <class name="GEvent"/>
-   <class name="GParticle"/>
-   <class name="triggerBits"/>
+<!--
+   <class name="HelperFor<float>"/>
+   <class name="BasicType<float>"/>
 
- <class name="HelperFor<reco::GenParticle>"/>
- <class name="reco::GenParticleHelper"/>
- 
- <class name="HelperFor<reco::HcalNoiseRBX>"/>
- <class name="reco::HcalNoiseRBXCaloTower"/>
-
- <class name="HelperFor<edm::TriggerResults>"/>
- <class name="edm::TriggerResultsHelper"/>
-
- <class name="HelperFor<edm::Event>"/>
- <class name="edm::EventHelper"/>
- 
- <class name="HelperFor<L1GlobalTriggerReadoutRecord>"/>
- <class name="L1GlobalTriggerReadoutRecordHelper"/>
- <class name="HelperFor<GenEventInfoProduct>"/>
- <class name="GenEventInfoProductHelper"/>
-
- <class name="HelperFor<float>"/>
- <class name="BasicType<float>"/>
-
- <class name="HelperFor<double>"/>
- <class name="BasicType<double>"/>
-
- <class name="HelperFor<bool>"/>
- <class name="BasicType<bool>"/>
-
- <class name="HelperFor<short>"/>
- <class name="BasicType<short>"/>
-
- <class name="HelperFor<unsigned short>"/>
- <class name="BasicType<unsigned short>"/>
- 
- <class name="HelperFor<int>"/>
- <class name="BasicType<int>"/>
-
- <class name="HelperFor<unsigned int>"/>
- <class name="BasicType<unsigned int>"/>
- 
- <class name="HelperFor<long>"/>
- <class name="BasicType<long>"/>
-
- <class name="HelperFor<unsigned long>"/>
- <class name="BasicType<unsigned long>"/>
- 
+   <class name="HelperFor<double>"/>
+   <class name="BasicType<double>"/>
+-->
 </lcgdict>

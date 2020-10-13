@@ -9,7 +9,7 @@
    PhysicsTools/TheNtupleMaker/src/kit.cc
 
  Description: A class of utilities. These functions are placed in a class 
-              so that Reflex can handle overloading automatically. This is
+              so that ROOT can handle overloading automatically. This is
 	      just a collection of boilderplate code, written over the years, 
               to lessen clutter.
  
@@ -156,7 +156,11 @@ struct kit
               _name(std::vector<std::string>()),
               _hist(TH1F("counts", "",1,0,1)) 
     {
+#if ROOT_VERSION_CODE < ROOT_VERSION(6,0,0)
       _hist.SetBit(TH1::kCanRebin);
+#else
+      _hist.SetCanExtend(TH1::kXaxis);
+#endif
       _hist.SetStats(0);
     }
 
@@ -289,6 +293,11 @@ struct kit
   std::string         replace(std::string& str, 
                               std::string  oldstr, 
                               std::string  newstr);
+
+  static
+  std::string         createBranchName(std::string prefix,
+				       std::string label,
+				       std::string varname);
   ///
   static
   std::string         shell(std::string cmd);

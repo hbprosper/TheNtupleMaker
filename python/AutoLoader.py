@@ -1,25 +1,28 @@
 #-----------------------------------------------------------------------------
-#$Revision: 1.1.1.1 $
 import sys
-from ROOT import *
+import ROOT
 #-----------------------------------------------------------------------------
 def fatal(message):
-	print "** error ** %s" % message
-	sys.exit(0)
+	sys.exit("** error ** %s" % message)
 #-----------------------------------------------------------------------------
 def enableAutoLoader():
-	print "enabling autoloader..."
-	if not (gSystem.Load( "libFWCoreFWLite" ) == 0):
-		fatal("unable to load FWCoreFWLite")        
-	AutoLibraryLoader.enable()
+	print("enabling autoloader...")
+	if not (ROOT.gSystem.Load( "libFWCoreFWLite" ) == 0):
+		fatal("unable to load FWCoreFWLite")
+        try:
+	        ROOT.FWLiteEnabler.enable()
+        except:
+                ROOT.AutoLibraryLoader.enable()
 #-----------------------------------------------------------------------------
 enableAutoLoader()
 
-vint         = vector("int")
-vfloat       = vector("float")
-vdouble      = vector("double")
-vstring      = vector("string")
-vvdouble     = vector("vector<double>")
+vint         = ROOT.vector("int")
+vfloat       = ROOT.vector("float")
+vdouble      = ROOT.vector("double")
+vstring      = ROOT.vector("string")
+vvint        = ROOT.vector("vector<int>")
+vvfloat      = ROOT.vector("vector<float>")
+vvdouble     = ROOT.vector("vector<double>")
 
 
 

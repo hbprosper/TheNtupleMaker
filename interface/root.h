@@ -43,6 +43,10 @@ struct root
   static
   TGLBEntry* LBEntry(TGListBox* listbox, std::string str, int id, 
                      std::string font="helvetica-medium-r", int fontsize=14);
+
+  ///
+  static
+  const TGWindow* GetRoot();
 };
 
 

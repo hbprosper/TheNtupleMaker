@@ -42,7 +42,23 @@
 //                      directly.
 //          22-Nov-2010 HBP allow reading of multiple trees
 //          22-Nov-2011 HBP handle reading/storing of strings
-//$Revision: 1.7 $
+//          03-Dec-2017 HBP write out leaf counter name in listing.
+//          21-Feb-2018 HBP fix getenv call
+//          22-Feb-2018 HBP make sure correct tree is called for branches
+//                      that may come from different trees.
+//          02-Mar-2018 HBP fix interaction between chains and friendly trees
+//                      at 35,000 feet!
+//          20-Sep-2018 HBP remember to set fullname in _add function.
+//                          possible compiler issue: wrong overloaded function
+//                          called, namely, float version of add when int version
+//                          requested. this caused the counter variables to fail.
+//                          the int version. placing int version of add function
+//                          before float version corrects the problem. (using
+//                          clang++ version clang-802.0.42.
+//          20-Jan-2019 HBP avoid ROOT warning when handling stored vector types.
+//          23-Jun-2019 HBP allow reading of simple STL vector types from file.
+//          18-Jan-2020 HBP in ROOT 6.16/00 it seems one must store leaf counter
+//                          explicitly. 
 //----------------------------------------------------------------------------
 #ifdef PROJECT_NAME
 #include <boost/regex.hpp>
@@ -60,6 +76,7 @@
 #include <cassert>
 
 
+#include "TROOT.h"
 #include "TList.h"
 #include "TKey.h"
 #include "TFile.h"
@@ -72,6 +89,11 @@
 #include "TList.h"
 #include "TIterator.h"
 #include "TFriendElement.h"
+#include "TString.h"
+#include "TPRegexp.h"
+#include "TClassEdit.h"
+#include "TObjArray.h"
+#include "TObjString.h"
 
 #ifdef PROJECT_NAME
 #include "PhysicsTools/TheNtupleMaker/interface/treestream.h"
@@ -108,7 +130,7 @@ namespace
 
   void DBUG(string message, int level=1)
   {
-    if ( getenv("DBtreestream") > 0 )
+    if ( getenv("DBtreestream") != (char*)0 )
       DEBUGLEVEL = atoi(getenv("DBtreestream"));
     else
       DEBUGLEVEL = 0;
@@ -141,163 +163,6 @@ namespace
   }
 
   // ----------------------------------------------------------------------
-  // return value of given internal buffer
-  // ----------------------------------------------------------------------
-  template <class T>
-  inline
-  T
-  invalue(Field* field, int index=0, int which=0)
-  {
-    if ( which == 0 )
-      return static_cast<T>(field->leaf->GetValue(index));
-    else
-      {
-        assert(index >= 0);
-        FieldBuffer<T>* d = dynamic_cast<FieldBuffer<T>*>(field);
-        if ( d == 0 ) fatal("invalue - dynamic_cast failed " + 
-                            string(field->branch->GetName()));
-        assert(index < (int)d->value.size());
-        return d->value[index];
-      }
-  }
-
-  template <class T>
-  inline
-  int
-  insize(Field* field)
-  {
-    FieldBuffer<T>* d = dynamic_cast<FieldBuffer<T>*>(field);
-    if ( d == 0 ) fatal("invalue - dynamic_cast failed " + 
-                        string(field->branch->GetName()));
-    return (int)d->value.size();
-  }
-
-
-  // // For debug only
-  // double
-  // getinvalue(Field* field, int index=0, int which=0)
-  // {
-  //   if ( which == 0 )
-  //     return field->leaf->GetValue(index);
-  //   else
-  //     {
-  //       double val = 0;
-  //       switch(field->iotype)
-  //         {
-  //         case 'D':
-  //           val = invalue<double>(field, index, 1);
-  //           break;
-	    
-  //         case 'F':
-  //           val = static_cast<double>(invalue<float>(field, index, 1));
-  //           break;
-	      
-  //         case 'L':
-  //           val = static_cast<double>(invalue<long>(field, index, 1));
-  //           break;
-
-  //         case 'I':
-  //           val = static_cast<double>(invalue<int>(field, index, 1));
-  //           break;
-
-  //         case 'S':
-  //           val = static_cast<double>(invalue<short>(field, index, 1));
-  //           break;
-	    
-  //         case 'B':
-  //           val = static_cast<double>(invalue<char>(field, index, 1));
-  //           break;
-
-  //         case 'O':
-  //           val = static_cast<double>(invalue<bool>(field, index, 1));
-  //           break;
-
-  //         case 'l':
-  //           val = static_cast<double>(invalue<unsigned long>(field, index, 1));
-  //           break;
-	    
-  //         case 'i':
-  //           val = static_cast<double>(invalue<unsigned int>(field, index, 1));
-  //           break;
-
-  //         case 's':
-  //           val=static_cast<double>(invalue<unsigned short>(field, index, 1));
-  //           break;
-
-  //         case 'b':
-  //           val = static_cast<double>(invalue<unsigned char>(field, index, 1));
-  //           break;
-
-  //         default:
-  //           val = invalue<double>(field, index, 1);
-  //           break;
-  //         }
-  //       return val;
-  //     }
-  // }
-
-  // int
-  // getinsize(Field* field)
-  // {
-  //   int size = 0;
-  //   switch(field->iotype)
-  //     {
-  //     case 'D':
-  //       size = insize<double>(field);
-  //       break;
-        
-  //     case 'F':
-  //       size = insize<float>(field);
-  //       break;
-        
-  //     case 'L':
-  //       size = insize<long>(field);
-  //       break;
-
-  //     case 'I':
-  //       size = insize<int>(field);
-  //       break;
-
-  //     case 'S':
-  //       size = insize<short>(field);
-  //       break;
-
-  //     case 'B':
-  //       size = insize<char>(field);
-  //       break;
-
-  //     case 'O':
-  //       size = insize<bool>(field);
-  //       break;
-
-  //     case 'C':
-  //       size = insize<string>(field);
-  //       break;
-
-  //     case 'l':
-  //       size = insize<unsigned long>(field);
-  //       break;
-        
-  //     case 'i':
-  //       size = insize<unsigned int>(field);
-  //       break;
-
-  //     case 's':
-  //       size = insize<unsigned short>(field);
-  //       break;
-
-  //     case 'b':
-  //       size = insize<unsigned char>(field);
-  //       break;
-
-  //     default:
-  //       size = insize<double>(field);
-  //       break;
-  //     }
-  //   return size;
-  // }
-
-  // ----------------------------------------------------------------------
   // return value of given external buffer
   // T is type of external buffer
   // ----------------------------------------------------------------------
@@ -317,7 +182,7 @@ namespace
     else
       {
         T* d = reinterpret_cast<T*>(field->address);
-        if ( d == 0 ) fatal("exvalue - reinterpret_cast failed" + 
+        if ( d == 0 ) fatal("exvalue - reinterpret_cast failed " + 
                             string(field->branch->GetName()));
         val = *d;
       }
@@ -359,61 +224,6 @@ namespace
   {
     char srctype[2]; srctype[0] = field->srctype; srctype[1] = 0;
     return string(srctype);
-  }
-
-  // For debug only
-
-  double
-  getexvalue(Field* field, int index=0)
-  {
-    double d = 0;
-    switch(field->srctype)
-      {
-      case 'D':
-        d = exvalue<double>(field, index);
-        break;
-        
-      case 'F':
-        d = static_cast<double>(exvalue<float>(field, index));
-        break;
-        
-      case 'L':
-        d = static_cast<double>(exvalue<long>(field, index));
-        break;
- 
-      case 'I':
-        d = static_cast<double>(exvalue<int>(field, index));
-        break;
-
-      case 'S':
-        d = static_cast<double>(exvalue<short>(field, index));
-        break;
-       
-      case 'B':
-        d = static_cast<double>(exvalue<char>(field, index));
-        break;
-
-      case 'O':
-        d = static_cast<double>(exvalue<bool>(field, index));
-        break;
-       
-      case 'l':
-        d = static_cast<double>(exvalue<unsigned long>(field, index));
-        break;
-        
-      case 'i':
-        d = static_cast<double>(exvalue<unsigned int>(field, index));
-        break;
-
-      case 's':
-        d = static_cast<double>(exvalue<unsigned short>(field, index));
-        break;
-
-      case 'b':
-        d = static_cast<double>(exvalue<unsigned char>(field, index));
-        break;
-      }
-    return d;
   }
 
   int
@@ -479,8 +289,12 @@ namespace
   template <class T>
   inline
   void
-  fromexternal(Field* field, int count)
+  fromexternal(Field* field)
   {
+    assert(field);
+    
+    int count = field->size;
+    
     if ( DEBUGLEVEL > 0 )
       {
         char preamble[160];
@@ -559,8 +373,6 @@ namespace
     if ( DEBUGLEVEL > 0 )
       {
         cout << "\tinternal value = " << d->value[0] << endl;
-        //cout << "\taddress        = " << &(d->value[0])
-        //     << endl;
         cout << "END fromexternal" << endl;
       }
   }
@@ -569,8 +381,10 @@ namespace
   template <>
   inline
   void
-  fromexternal<string>(Field* field, int count)
+  fromexternal<string>(Field* field)
   {
+    int count = field->size;
+    
     if ( DEBUGLEVEL > 0 )
       {
         char preamble[160];
@@ -613,18 +427,26 @@ namespace
   void
   toexternal(Field* field)
   {
-    int count = min(field->leaf->GetLen(), field->maxsize);
-    //int count = getmaxsize(field->leaf);
+    // GetLenStatic returns the number of elements/leaf
+    // GetLen returns the total number of elements/leaf.
+    // Therefore, the number of leaves/branch is GetLen / GenLenStatic
+    int count_per_leaf = field->leaf->GetLenStatic();
+    int total_count_per_leaf = field->leaf->GetLen();
+    int count = total_count_per_leaf / count_per_leaf;
+    //count = min(count, field->maxsize);
 
     if ( DEBUGLEVEL > 0 )
       {
         char preamble[160];
         sprintf(preamble,
-                "BEGIN toexternal\n\t%-16s (%s -> %s) count = %d",
+                "toexternal\n %-16s (%s -> %s) count = %d, "
+		"GetLen() = %d, GetLenStatic() = %d",
                 field->leaf->GetName(), 
                 getiotype (field).c_str(),
                 getsrctype(field).c_str(),
-                count);
+                count,
+		total_count_per_leaf,
+		count_per_leaf);
         cout << preamble << endl;
       }        
 
@@ -632,21 +454,75 @@ namespace
 
     if ( field->isvector )
       {
-        vector<T>* d = reinterpret_cast<vector<T>*>(field->address);
-        if ( d == 0 ) fatal("toexternal - reinterpret_cast failed" + 
-                            string(field->fullname));
+	// if count_per_leaf == 1, then we assume the return buffer
+	// is vector<T>, in which case field->isvector = 1
+	//
+	// if count_per_leaf > 1, then we assume the return buffer
+	// if vector<vector<T> >, in which case field->isvector should be 2
+	if ( count_per_leaf == 1 )
+	  {
+	    // vector<T>
+	    
+	    vector<T>* ptr = reinterpret_cast<vector<T>*>(field->address);
+	    if ( ptr == 0 ) fatal("toexternal - reinterpret_cast failed" + 
+				string(field->fullname));
+	    
+	    // NOTE: d is the same object as *ptr
+	    vector<T>& d = *ptr;
+	    
+	    if ( (int)d.size() != count ) d.resize(count, 0);
         
-        if ( (int)d->size() != count ) d->resize(count, 0);
+	    if ( (int)d.size() != count ) 
+	      fatal("toexternal - unable to resize external buffer for " + 
+		    field->leafname);
         
-        if ( (int)d->size() != count ) 
-          fatal("toexternal - unable to resize external buffer for " + 
-                field->leafname);
-        
-        for(int index=0; index < count; index++)
-          (*d)[index] = static_cast<T>(field->leaf->GetValue(index));
+	    for(int index=0; index < count; index++)
+	      d[index] = static_cast<T>(field->leaf->GetValue(index));
 
-        if ( DEBUGLEVEL > 0 )
-          cout << "\texternal value = " << (*d)[0] << endl;
+	    if ( DEBUGLEVEL > 0 )
+	      {
+		for(size_t ii=0; ii < d.size(); ii++)
+		  cout << "\ttoexternal "
+		       << field->fullname << "[" << ii << "]\t"
+		       << d[ii] << endl;		  
+	      }
+	  }
+	else
+	  {
+	    // vector<vector<T> >
+
+	    vector<vector<T> >* ptr = reinterpret_cast<vector<vector<T> >*>(field->address);
+	    if ( ptr == 0 ) fatal("toexternal - reinterpret_cast failed" + 
+				string(field->fullname));
+
+	    // NOTE: d is the same object as *ptr
+	    vector<vector<T> >& d = *ptr;
+	    
+	    int index = 0;
+	    d.clear();
+	    vector<T> v(count_per_leaf);
+	    
+	    for(int ii=0; ii < count; ii++)
+	      {
+		for(size_t jj=0; jj < v.size(); jj++)
+		  {
+		    v[jj] = static_cast<T>(field->leaf->GetValue(index));
+		    index++;
+		  }
+		d.push_back(v);
+	      }
+
+	    if ( DEBUGLEVEL > 0 )
+	      {
+		for(size_t ii=0; ii < d.size(); ii++)
+		  {
+		    for(size_t jj=0; jj < d[ii].size(); jj++)
+		      cout << "\ttoexternal "
+			   << field->fullname << "[" << ii << "][" << jj <<  "]\t"
+			   << d[ii][jj] << endl;
+		  }
+	      }
+	  }
       }
     else
       {
@@ -658,7 +534,7 @@ namespace
 
         if ( DEBUGLEVEL > 0 )
           {
-            cout << "\texternal value = " << *d;
+            cout << "\ttoexternal " << field->fullname << "\t" << *d;
             if ( field->iscounter ) cout << " (counter)";
             cout << endl;
           }
@@ -721,7 +597,7 @@ namespace
   inline
   void
   createbranch(TTree* tree, Field* field, 
-               const char* format, 
+               const char* FMT, 
                SelectedData& selecteddata)
   {
     DBUG("\tcreatebranch: BEGIN");
@@ -729,48 +605,123 @@ namespace
     if ( tree == 0 ) fatal("createbranch - tree pointer is zero ");
     if ( field == 0 ) fatal("createbranch - field pointer is zero ");
 
+    string format(FMT);
+    
     FieldBuffer<T>* v = new FieldBuffer<T>();
     assert(v != 0);
 
-    v->iotype  = field->iotype;
-    v->srctype = field->srctype;
-    v->address = field->address;
-    v->isvector= field->isvector;
-    v->maxsize = field->maxsize;
+    v->skip      = false;
+    v->iotype    = field->iotype;
+    v->srctype   = field->srctype;
+    v->address   = field->address;
+    v->isvector  = field->isvector;
+    v->maxsize   = field->maxsize;    
+    v->treename  = field->treename;
+    v->fullname  = field->fullname;
     v->branchname= field->branchname;
-    v->leafname= field->branchname;
+    v->countername = field->countername;
+    
     v->iscounter = false;
-    v->branch  = 0;
-    v->leaf    = 0;
-    v->leafname= ""; 
+    v->leafname  = ""; 
+    v->branch    = 0;
+    v->leaf      = 0;
+    v->size      = 0;
+    
+    TBranch* branch = 0;
 
     v->value.clear();
     v->value.reserve(v->maxsize);
     v->value.resize(v->maxsize, 0);
-
+    //DEBUG
     if ( DEBUGLEVEL > 0 )
       {
-        cout << "\tcreatebranch: maxsize: " << v->value.size() << endl;
-        cout << "\tcreatebranch: ADDRESS: " << v->address << endl;
+	cout << "\tcreatebranch: fullname: " << v->fullname << endl;
+	cout << "\tcreatebranch: maxsize:  " << v->value.size() << endl;
+	cout << "\tcreatebranch: address:  " << v->address << endl;
+	cout << "\tcreatebranch: format:   " << format << endl;
       }
 
     // Store in map
-    selecteddata[v->branchname] = v;
+    selecteddata[v->fullname] = v;
 
-    DBUG("\tcreatebranch: " + v->branchname + "\t" + format);
+    // check if we need to create a leaf counter. for vectors only
+    if ( v->isvector )
+      {
+	string cname = v->countername;
+	if ( cname == "" ) cname = v->fullname + "_size";
+	v->countername = cname;
+	
+	if ( selecteddata.find(cname) == selecteddata.end() )
+	  {
+	    // we need to create a leaf counter
+	    if ( DEBUGLEVEL > 0 )
+	      cout << "\tcreatebranch: create leaf counter: " << cname << endl;
 
+	    FieldBuffer<int>* l = new FieldBuffer<int>();
+	    assert(l != 0);
+	    
+	    l->iotype    = 'I';
+	    l->srctype   = 'I';
+	    l->address   = &l->size; // NB: address of count
+	    l->isvector  = 0;
+	    l->maxsize   = 1;
+	    l->treename  = field->treename;
+	    l->fullname  = cname;
+	    l->branchname= cname;
+	    l->countername = "";  // a leaf counter does not have a leaf counter!
+	    
+	    l->iscounter = true;
+	    l->skip      = false;
+	    l->leafname  = ""; 
+	    l->branch    = 0;
+	    l->leaf      = 0;
+	    l->size      = 1;
+	
+	    // Store in map
+	    selecteddata[l->fullname] = l;
+	    
+	    char fmt[256];
+	    sprintf(fmt, "%s/I", l->fullname.c_str());
+	    tree->Branch(l->fullname.c_str(), l->address, fmt);
+    
+	    l->branch = tree->GetBranch(l->fullname.c_str());
+	    if ( l->branch == 0 ) fatal("createbranch - unable create branch " + 
+					l->fullname);
+    
+	    l->leaf   = l->branch->GetLeaf(l->fullname.c_str());
+    
+	    assert(l->leaf);
+
+	    // update format of vector variable
+	    int k = format.find("[");
+	    if ( k < 0 )
+	      {
+		k = format.find("/");
+		string name = format.substr(0, k);
+		char IOtype[2] = {v->iotype, 0};
+		sprintf(fmt, "%s[%s]/%s", name.c_str(), cname.c_str(), IOtype);		
+		format = string(fmt);
+	      }
+	  }
+	else
+	  {
+	    // leaf counter already exists
+	    selecteddata[cname]->iscounter = true;
+	  }
+      }
+    
     // IMPORTANT: need address of first element of vector, not of the
     // vector itself
     void* address = &(v->value[0]);
-    tree->Branch(v->branchname.c_str(), address, format);
-
-
-    TBranch* branch = tree->GetBranch(v->branchname.c_str());
+    tree->Branch(v->fullname.c_str(), address, format.c_str());
+    
+    branch = tree->GetBranch(v->fullname.c_str());
     if ( branch == 0 ) fatal("createbranch - unable create branch " + 
-                             v->branchname);
-
+			     v->fullname);
+    
     v->branch = branch;
-    v->leaf   = branch->GetLeaf(v->branchname.c_str());
+    v->leaf   = branch->GetLeaf(v->fullname.c_str());
+    
     assert(v->leaf);
 
     DBUG("\tcreatebranch: END");
@@ -797,15 +748,20 @@ namespace
     v->address = field->address;
     v->isvector= field->isvector;
     v->maxsize = field->maxsize;
-    v->branchname= field->branchname;
-    v->leafname= field->branchname;
-    v->iscounter = false;
-    v->branch  = 0;
-    v->leaf    = 0;
-    v->leafname= ""; 
 
+    v->treename  = field->treename;
+    v->fullname  = field->fullname;
+    v->branchname= field->branchname;
+    
+    v->iscounter= false;
+    v->skip     = false;
+    v->size     = 1;    
+    v->branch   = 0;
+    v->leaf     = 0;
+    v->leafname = ""; 
+    
     string* d = reinterpret_cast<string*>(field->address);
-    if ( d == 0 ) fatal("createbranch - reinterpret_cast failed" + 
+    if ( d == 0 ) fatal("createbranch - reinterpret_cast failed " + 
                         string(field->fullname));
     v->value.clear();
     v->value.reserve(v->maxsize);
@@ -817,19 +773,19 @@ namespace
         cout << "\tcreatebranch: maxsize:   " << v->value.size() << endl;
       }
     // Store in map
-    selecteddata[v->branchname] = v;
+    selecteddata[v->fullname] = v;
 
-    DBUG("\tcreatebranch: " + v->branchname + "\t" + format);
+    DBUG("\tcreatebranch: " + v->fullname + "\t" + format);
 
     void* address = (void*)(v->value[0].c_str());
-    tree->Branch(v->branchname.c_str(), address, format);
+    tree->Branch(v->fullname.c_str(), address, format);
 
-    TBranch* branch = tree->GetBranch(v->branchname.c_str());
+    TBranch* branch = tree->GetBranch(v->fullname.c_str());
     if ( branch == 0 ) fatal("createbranch - unable create branch " + 
-                             v->branchname);
+                             v->fullname);
 
     v->branch = branch;
-    v->leaf   = branch->GetLeaf(v->branchname.c_str());
+    v->leaf   = branch->GetLeaf(v->fullname.c_str());
     assert(v->leaf);
 
     DBUG("\tcreatebranch: END");
@@ -840,10 +796,7 @@ namespace
   readbranch(Field* field, int entry)
   {
     assert(field != 0);
-    if ( field->branch ==0 ) return;
-
-    assert(field->branch != 0);
-    assert(field->leaf != 0);
+    if ( field->branch == 0 ) return;
 
     // Read entry for current branch
 
@@ -860,7 +813,7 @@ namespace
     // If this is intrinsically a vector type, we let Root handle it
     // directly
     if ( field->iotype == 'v' ) return;
-
+    
     // Copy data from internal to external buffers
     // iotype -> srctype
 
@@ -935,44 +888,11 @@ itreestream::itreestream()
     _buffer(vector<double>(1000)),
     data(Data()),
     selecteddata(SelectedData()),
-    _delete(true)
+    _delete(true),
+    _treename(""),
+    _treenames(vector<string>())
 {}
 
-itreestream::itreestream(string filename_, int bufsize)
-  : _tree(0),
-    _chain(0),
-    _statuscode(kSUCCESS),
-    _current(-1),
-    _entries(0),
-    _entry(0),
-    _index(0),
-    _buffer(vector<double>(bufsize)),
-    data(Data()),
-    selecteddata(SelectedData()),
-    _delete(true)
-{
-  vector<string> fname;
-  split(filename_, fname);
-  vector<string> tname;
-  _open(fname, tname);
-}
-
-itreestream::itreestream(vector<string>& fname, int bufsize)
-  : _tree(0),
-    _chain(0),
-    _statuscode(kSUCCESS),
-    _current(-1),
-    _entries(0),
-    _entry(0),
-    _index(0),
-    _buffer(vector<double>(bufsize)),
-    data(Data()),
-    selecteddata(SelectedData()),
-    _delete(true)
-{
-  vector<string> tname;
-  _open(fname, tname);
-}
 
 itreestream::itreestream(string filename_, string treename, int bufsize)
   : _tree(0),
@@ -985,12 +905,15 @@ itreestream::itreestream(string filename_, string treename, int bufsize)
     _buffer(vector<double>(bufsize)),
     data(Data()),
     selecteddata(SelectedData()),
-    _delete(true)
+    _delete(true),
+    _treename(""),
+    _treenames(vector<string>())    
 {
   vector<string> fname;
   split(filename_, fname);
   vector<string> tname;
-  split(treename, tname);
+  if ( treename != "" )
+    split(treename, tname);
   _open(fname, tname);
 }
 
@@ -1005,12 +928,18 @@ itreestream::itreestream(vector<string>& fname, string treename, int bufsize)
     _buffer(vector<double>(bufsize)),
     data(Data()),
     selecteddata(SelectedData()),
-    _delete(true)
+    _delete(true),
+    _treename(""),
+    _treenames(vector<string>())    
 {
   vector<string> tname;
-  split(treename, tname);
+  if ( treename != "" )
+    split(treename, tname);
   _open(fname, tname);
 }
+
+vector<string>
+itreestream::treenames() { return _treenames; }
 
 void
 itreestream::init(TTree* tree_)
@@ -1039,8 +968,10 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
 
   _buffer.clear();
 
-  string treename("");
-  if ( tname.size() > 0 ) treename = tname[0];
+  if ( tname.size() > 0 )
+    _treename = tname[0];
+  else
+    _treename = string("");  
 
   // If tree pointer is zero, get tree from file
   if ( _tree == 0 )
@@ -1061,87 +992,102 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
           globfree(&g);
         }
 #else
-     for (unsigned int j=0; j < fname.size(); ++j){
-       filepath.push_back(fname[j]);
-     }
-     //filepath.push_back(fname[0]);
-     //std::cout << "filepath size: " << filepath.size() << endl;  
+     for (size_t j=0; j < fname.size(); ++j)
+       {
+	 filepath.push_back(fname[j]);
+       }
 #endif
-      //DBUG("itreestream::ctor - new TFile ", 2);
-      DBUG("itreestream::ctor - TFile::Open ", 2);
+      DBUG("itreestream::ctor - TFile::Open ");
   
       // ----------------------------------------
       // Open first file
       // ----------------------------------------
       TFile* file_ = TFile::Open(filepath[0].c_str());
-      //TFile* file_ = new TFile(filepath[0].c_str());
       if ( ! file_ || (file_ != 0 && ! file_->IsOpen()) )
         fatal("itreestream - unable to open file " + filepath[0]);
       file_->cd();
-      
-      if ( treename == "" )
-        {      
+
+
+      // get all tree names
+      DBUG("itreestream::ctor - before _gettree");
+      _gettree(file_);
+      DBUG("itreestream::ctor - after _gettree");
+
+      if ( tname.size() == (size_t)0 )
+        {
           // ----------------------------------------
           // No tree name was given. Here is the default
-          // action: If one of the trees is called 
-          // Events then use it and warn user. If not,
-          // use the first tree and warn user.
+          // action: Use the first tree found and warn
+	  // user.
           // ----------------------------------------
-          _tree = 0; // make sure to zero
-          
-	  treename = _gettree(file_);
-
+	  tname.resize(1);
+	  tname[0]  = _treenames[0];
+	  _treename = _treenames[0];
+	  _tree = (TTree*)file_->Get(_treename.c_str());
           if ( ! _tree )
             fatal("itreestream - NO tree found in file " + filepath[0]);
           
-          cout << endl << "** NB. itreestream - using tree: " 
-               << treename << endl << endl;
+          cout << "** WARNING ** itreestream - tree not given; using tree: " 
+               << _treename << endl;
         }
+      else if ( TString(tname[0].c_str()).Contains("*") )
+	{
+          // ----------------------------------------
+          // All trees requested
+          // ----------------------------------------	  
+	  tname.resize(_treenames.size());
+	  copy(_treenames.begin(), _treenames.end(), tname.begin());
+	  _treename = _treenames[0];
+	  _tree = (TTree*)file_->Get(_treename.c_str());
+          if ( ! _tree )
+            fatal("itreestream - NO tree found in file " + filepath[0]);	  
+	}
       else
-        {
-          _tree = (TTree*)file_->Get(treename.c_str());
+	{
+          // ----------------------------------------
+          // At least one tree requested
+          // ----------------------------------------	  
+	  _treename = tname[0];
+	  _tree = (TTree*)file_->Get(_treename.c_str());
           if ( ! _tree )
-            fatal("itreestream - NO tree found in file " + filepath[0]);
-        }
+            fatal("itreestream - NO tree found in file " + filepath[0]);	  
+	}	
       
-      string message("itreestream::ctor - treename: " + treename);
-      DBUG(message, 2);
+      string message("itreestream::ctor - treename: " + _treename);
+      DBUG(message);
 
       // Remember to close file. It will be re-opened as part of a
       // chain.
-      
+
       file_->Close();
       
-      DBUG("itreestream::ctor - after file->Close", 2);
+      DBUG("itreestream::ctor - after file->Close");
 
       // ----------------------------------------
       // Create a chain of files
       // ----------------------------------------
       // WARNING: This might be slow for large chains. 
+
       
       DBUG("itreestream::ctor - new TChain", 2);
-      _chain = new TChain(treename.c_str());
+      _chain = new TChain(tname[0].c_str());
       if ( ! _chain ) fatal("itreestream - Unable to create chain");
+      for(size_t i=0; i < filepath.size(); i++)
+	_chain->Add(filepath[i].c_str());
+      _chainmap[tname[0]] = _chain;
 
-      _chainlist.push_back(_chain);
       // ----------------------------------------
-      // Add possible friends
+      // Add possible friendly trees
       // ----------------------------------------
-      for(unsigned int i=1; i < tname.size(); i++)
+      for(size_t i=1; i < tname.size(); i++)
         {
           DBUG("itreestream::ctor - AddFriend " + tname[i], 2);
-          _chainlist.push_back(new TChain(tname[i].c_str()));
-          _chain->AddFriend(_chainlist.back());
+          _chainmap[tname[i]] = new TChain(tname[i].c_str());
+	  for(size_t j=0; j < filepath.size(); j++)
+	    _chainmap[tname[i]]->Add(filepath[j].c_str());	  
+          _chain->AddFriend(_chainmap[tname[i]]);
         }
-
-      for(int i=0; i < (int)filepath.size(); i++)
-        {
-          for(unsigned int k=0; k < _chainlist.size(); k++)
-            {
-              _chainlist[k]->Add(filepath[i].c_str());
-            }
-        }
-
+      
       DBUG("itreestream::ctor - GetEntries", 2);
       _entries = _chain->GetEntries();
       
@@ -1149,7 +1095,6 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
       // Update tree pointer
       // ----------------------------------------
       _tree = _chain; 
-
     }
 
   // ----------------------------------------
@@ -1159,10 +1104,13 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
   // use the syntax:
   //    <branchname>.<leafname> 
   // ----------------------------------------
-  
-  for(unsigned int k=0; k < _chainlist.size(); k++)
+  if ( DEBUGLEVEL > 0 )
+    cout << "itreestream::ctor - number of trees: " << tname.size() << endl;
+								       
+  for(size_t k=0; k < tname.size(); k++)
     {
-      TChain* chain = _chainlist[k];
+ 
+      TChain* chain = _chainmap[tname[k]];
       TObjArray* array = chain->GetListOfBranches();
       if ( !array ) fatal("itreestream::ctor - "
                           "Unable to GetListOfBranches for " +
@@ -1170,11 +1118,11 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
 
       int nitems = array->GetEntries();
 
-      if ( DEBUGLEVEL > 1 )
+      if ( DEBUGLEVEL > 0 )
         {
           char message[80];
-          sprintf(message, "Number of branches in tree %s: %d", 
-                  string(chain->GetName()).c_str(), nitems);
+          sprintf(message, "itreestream::ctor - number of branches in tree %s: %d", 
+                  tname[k].c_str(), nitems);
           cout << message << endl;
         }
 
@@ -1183,7 +1131,6 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
           TBranch* branch = (TBranch*)((*array)[i]);      
           _getbranches(branch, 0);
         }
-
     }
 
   // ----------------------------------------
@@ -1195,8 +1142,14 @@ itreestream::_open(vector<string>& fname, vector<string>& tname)
       int count = 0;
       TLeaf* leafcounter = it->second.leaf->GetLeafCounter(count);
       if ( leafcounter != 0 )
-        if ( data.find(leafcounter->GetBranch()->GetName()) != data.end() )
-          data[leafcounter->GetBranch()->GetName()].iscounter = true;
+	{
+	  string fullname = it->second.treename + "/" +
+	    leafcounter->GetBranch()->GetName();
+	  if ( data.find(fullname) != data.end() )
+	    {
+	      data[fullname].iscounter = true;
+	    }
+	}
     }
 
   if ( DEBUGLEVEL > 0 ) 
@@ -1211,37 +1164,102 @@ itreestream::~itreestream()
   close();
 }
 
-string
-itreestream::_gettree(TDirectory* dir, string treename, int depth)
+void
+itreestream::_gettree(TDirectory* dir, int depth, string dirname)
 {
   depth += 1;
-  if ( depth > 5 ) return treename;
+  if ( depth > 5 ) return;
 
+  DBUG("gettree(entered)");
   TIter nextkey(dir->GetListOfKeys());          
   while ( TKey* key = (TKey*)nextkey() )
     {
       TObject* o = key->ReadObj();
       if ( o->IsA()->InheritsFrom("TTree") )
 	{
-	  if ( _tree == 0 ) _tree = (TTree*)o; // Record first tree
-	  string tname = string(_tree->GetName());
-          treename += tname;
-
-	  if ( tname == "Events" )
-	    {
-	      // Found a tree called Events, so use it
-	      _tree = (TTree*)o;
-	      break;
-	    }
+	  _tree = dynamic_cast<TTree*>(o);
+	  _treenames.push_back(dirname + string(_tree->GetName()));
+	  DBUG("gettree - tree: " + _treenames.back());
 	}
       else if ( o->IsA()->InheritsFrom("TDirectory") )
 	{
-	  treename += string(o->GetName())+"/";
-	  treename = _gettree((TDirectory*)o, treename, depth);
+	  TDirectory* d = dynamic_cast<TDirectory*>(o);
+	  DBUG("gettree - dirname: " + string(d->GetName()));
+	  
+	  if ( depth == 1 )
+	    dirname  = string(d->GetName()) + "/";
+	  else
+	    dirname += string(d->GetName()) + "/";
+	  _gettree(d, depth, dirname);
 	}
     }
-  return treename;
+  return;
 }
+
+// void
+// itreestream::_getbranches(TDirectory* dir, int depth, string dirname)
+// {
+//   depth += 1;
+//   if ( depth > 10 ) return;
+
+//   DBUG("getbranches(entered)");
+//   TIter nextkey(dir->GetListOfKeys());          
+//   while ( TKey* key = (TKey*)nextkey() )
+//     {
+//       TObject* o = key->ReadObj();
+//       if ( o->IsA()->InheritsFrom("TTree") )
+// 	{
+// 	  _tree = dynamic_cast<TTree*>(o);
+// 	  _treenames.push_back(dirname + string(_tree->GetName()));
+// 	  DBUG("gettree - tree: " + string(_tree->GetName()));
+// 	}
+//       else if ( o->IsA()->InheritsFrom("TDirectory") )
+// 	{
+// 	  TDirectory* d = dynamic_cast<TDirectory*>(o);
+// 	  DBUG("gettree - dir: " + string(d->GetName()));
+	  
+// 	  if ( depth == 1 )
+// 	    dirname  = string(d->GetName()) + "/";
+// 	  else
+// 	    dirname += string(d->GetName()) + "/";
+// 	  _gettree(d, depth, dirname);
+// 	}
+//     }
+//   return;
+// }
+
+
+// string
+// itreestream::_gettree(TDirectory* dir, string treename, int depth)
+// {
+//   depth += 1;
+//   if ( depth > 5 ) return treename;
+
+//   TIter nextkey(dir->GetListOfKeys());          
+//   while ( TKey* key = (TKey*)nextkey() )
+//     {
+//       TObject* o = key->ReadObj();
+//       if ( o->IsA()->InheritsFrom("TTree") )
+// 	{
+// 	  if ( _tree == 0 ) _tree = (TTree*)o; // Record first tree
+// 	  string tname = string(_tree->GetName());
+//           treename += tname;
+
+// 	  if ( tname == "Events" )
+// 	    {
+// 	      // Found a tree called Events, so use it
+// 	      _tree = (TTree*)o;
+// 	      break;
+// 	    }
+// 	}
+//       else if ( o->IsA()->InheritsFrom("TDirectory") )
+// 	{
+// 	  treename += string(o->GetName())+"/";
+// 	  treename = _gettree((TDirectory*)o, treename, depth);
+// 	}
+//     }
+//   return treename;
+// }
 // ------------------------------------------------------------------------
 // Get all branches from the root-file, recursively. Create a
 // Field for each branch/leaf. By doing this recursively we do not have 
@@ -1301,9 +1319,6 @@ void
 itreestream::_getleaf(TBranch* branch, TLeaf* leaf)
 {
   if ( branch == 0 ) fatal("_getleaf - branch pointer zero");
-
-  //bool storeBranchname = leaf == 0;
-
   if ( leaf == 0 )
     {
       TObjArray* array = branch->GetListOfLeaves();
@@ -1317,11 +1332,39 @@ itreestream::_getleaf(TBranch* branch, TLeaf* leaf)
   v.address = 0;      // Set by caller
   v.srctype = 0;      // Set by caller
   v.maxsize = 0;      // Set by caller
-  v.isvector= false;  // Set by caller (true if external variable is a vector)
+  v.isvector= 0;      // Set by caller (1 or 2 if external variable is a vector)
+
   v.branch  = branch;
   v.leaf    = leaf;
+
+  // get full path to tree
+  v.treename= branch->GetTree()->GetName();
+  TDirectory* dir = branch->GetTree()->GetDirectory();
+  if ( dir )
+    {
+      string dirname(dir->GetName());
+      if ( dirname != string(dir->GetFile()->GetName()) )
+	{
+	  if ( dirname != "" ) v.treename = dirname + "/" + v.treename;
+	}
+    }
+	 
   v.branchname= branch->GetName();
   v.leafname  = leaf->GetName();
+  v.fullname  = v.treename + "/" + v.branchname;
+    
+  // associate this field with the chain to which it belongs
+  string key = v.treename;
+  if ( _chainmap.find(key) == _chainmap.end() )
+    {
+      key = string(branch->GetTree()->GetDirectory()->GetName())
+	+ string("/") + v.treename;
+      if ( _chainmap.find(key) == _chainmap.end() )
+	fatal("getleaf - unable to find chain associated with field " + key);
+    }
+  v.chain     =_chainmap[key];
+  // get first character of type name, which specifies the stored type in the
+  // ROOT file.
   v.iotype    = leaf->GetTypeName()[0];
   v.iscounter = false;
 
@@ -1330,22 +1373,21 @@ itreestream::_getleaf(TBranch* branch, TLeaf* leaf)
   // a name for each leaf within the branch.
   if ( branch->GetListOfLeaves()->GetEntries() == 1 )
     {
-      v.fullname  = v.branchname;
-      data[v.branchname] = v;
+      data[v.fullname] = v;
     }
   else
     {
-      v.fullname  = v.branchname + "." + v.leafname;
+      v.fullname += + "." + v.leafname;
       data[v.fullname] = v;
     }
 
-  //   if ( storeBranchname )
-  //     data[v.branchname] = v;
-  //   else
-  //     data[v.fullname] = v;
-
   if ( DEBUGLEVEL > 0 ) 
-    cout << "getleaf(" << v.fullname << ")" << endl;
+    cout << "getleaf"
+	 << " fullname(" << v.fullname << ")"
+	 << " treename(" << v.treename << ")"
+      	 << " branchname(" << v.branchname << ")"
+	 << " iotype(" << v.iotype << ")"
+	 << endl;
 }
 
 // Shutdown stream
@@ -1356,7 +1398,7 @@ itreestream::close()
   _statuscode = kSUCCESS;
   
   if ( _tree == 0 ) return;
-  DBUG("itreestream::close file",3);
+  DBUG("itreestream::close file", 1);
   if ( _delete ) delete  _tree;
   _tree = 0;
 }
@@ -1429,66 +1471,103 @@ itreestream::select(string namen, unsigned short& d)
 }
 
 
-// Now vectors
+// vector<T>
 
 void 
 itreestream::select(string namen, vector<double>& d)
 {
-  _select(namen, &d, d.size(), 'D', true);
+  _select(namen, &d, d.size(), 'D', 1);
 }
 
 void 
 itreestream::select(string namen, vector<float>& d)
 {
-  _select(namen, &d, d.size(), 'F', true);
+  _select(namen, &d, d.size(), 'F', 1);
 }
 
 void 
 itreestream::select(string namen, vector<long>& d)
 {
-  _select(namen, &d, d.size(), 'L', true);
+  _select(namen, &d, d.size(), 'L', 1);
 }
 
 void 
 itreestream::select(string namen, vector<int>& d)
 {
-  _select(namen, &d, d.size(), 'I', true);
+  _select(namen, &d, d.size(), 'I', 1);
 }
 
 void 
 itreestream::select(string namen, vector<short>& d)
 {
-  _select(namen, &d, d.size(), 'S', true);
+  _select(namen, &d, d.size(), 'S', 1);
 }
 
 void 
 itreestream::select(string namen, vector<char>& d)
 {
-  _select(namen, &d, d.size(), 'B', true);
+  _select(namen, &d, d.size(), 'B', 1);
 }
 
 void 
 itreestream::select(string namen, vector<bool>& d)
 {
-  _select(namen, &d, d.size(), 'O', true);
+  _select(namen, &d, d.size(), 'O', 1);
 }
 
 void 
 itreestream::select(string namen, vector<unsigned long>& d)
 {
-  _select(namen, &d, d.size(), 'l', true);
+  _select(namen, &d, d.size(), 'l', 1);
 }
 
 void 
 itreestream::select(string namen, vector<unsigned int>& d)
 {
-  _select(namen, &d, d.size(), 'i', true);
+  _select(namen, &d, d.size(), 'i', 1);
 }
 
 void 
 itreestream::select(string namen, vector<unsigned short>& d)
 {
-  _select(namen, &d, d.size(), 's', true);
+  _select(namen, &d, d.size(), 's', 1);
+}
+
+// vector<vector<T> >
+void 
+itreestream::select(string namen, vector<vector<double> >& d)
+{
+  _select(namen, &d, d.size(), 'D', 2);
+}
+
+void 
+itreestream::select(string namen, vector<vector<float> >& d)
+{
+  _select(namen, &d, d.size(), 'F', 2);
+}
+
+void 
+itreestream::select(string namen, vector<vector<long> >& d)
+{
+  _select(namen, &d, d.size(), 'L', 2);
+}
+
+void 
+itreestream::select(string namen, vector<vector<int> >& d)
+{
+  _select(namen, &d, d.size(), 'I', 2);
+}
+
+void 
+itreestream::select(string namen, vector<vector<unsigned long> >& d)
+{
+  _select(namen, &d, d.size(), 'l', 2);
+}
+
+void 
+itreestream::select(string namen, vector<vector<unsigned int> >& d)
+{
+  _select(namen, &d, d.size(), 'i', 2);
 }
 
 void 
@@ -1524,6 +1603,28 @@ itreestream::get(string namen)
     return 0; 
 }
 
+void
+itreestream::read(int start, vector<vector<double> >& v) 
+{
+  if ( v.size() < _bufmap.size() ) return;
+
+  size_t nrows = (size_t)size() < v[0].size() ? (size_t)size() : v[0].size();
+  for(size_t c=0; c < nrows; c++)
+    {      
+      int entry = start + c;
+      read(entry);
+
+      int j=0;
+      map<string, int>::iterator it = _bufmap.begin();  
+      for(it=_bufmap.begin(); it != _bufmap.end(); it++)
+	{
+	  v[j][c] = _buffer[ it->second ];
+	  j++;
+	}
+    }
+}
+
+
 // ------------------------------------------------------------------------
 // Read tree with ordinal value entry.
 // ------------------------------------------------------------------------
@@ -1531,6 +1632,8 @@ int
 itreestream::read(int entry)
 {
   _statuscode = kSUCCESS;
+  // localentry is relative to a tree, while entry is the global ordinal value
+  // of event.
   int localentry = 0;
 
   // If entry is negative, we assume that the tree is already in
@@ -1547,7 +1650,7 @@ itreestream::read(int entry)
       if (localentry < 0) return localentry;
 
       if ( DEBUGLEVEL > 0 ) 
-        cout << "entry(" << entry << ")"
+        cout << "entry(" << entry << ") "
              << "localentry(" << localentry << ")" << endl;
 
       // Update pointers to tree, branches and leaves.
@@ -1575,6 +1678,7 @@ itreestream::read(int entry)
     {
       Field* field = it->second;
       assert(field != 0);
+      if ( field->skip ) continue;
       if ( ! field->iscounter ) continue;
       readbranch(field, localentry);
     }
@@ -1585,6 +1689,7 @@ itreestream::read(int entry)
     {
       Field* field = it->second;
       assert(field != 0);
+      if ( field->skip ) continue;
       if ( field->iscounter ) continue;
       readbranch(field, localentry);
     }
@@ -1628,19 +1733,27 @@ itreestream::str() const
   if ( ! _tree ) return string("");
 
   ostringstream out;
-  out << endl;
-  out << "Tree Name          " << _tree->GetName()      << endl;
-  out << "Number of entries  " << _tree->GetEntries()   << endl;
+  out << "File " << _tree->GetCurrentFile()->GetName()      << endl;
+  out << "Tree   " << _tree->GetName()      << endl;
+  TList* list = _tree->GetListOfFriends();
+  if ( list )
+    for(int c=0; c < list->GetEntries(); c++)
+      {
+	TTree* ptree = (TTree*)list->At(c);
+	out << "Tree   " << ptree->GetName()      << endl;
+      }
+  out << "Entries  " << _tree->GetEntries()   << endl;
   out << endl;
 
-  int count = 0;
+  // sort branch names so that all branches per tree occur together
+  vector<string> records;
   Data::const_iterator it;
+  int count = 0;
   for(it=data.begin(); it != data.end(); it++)
     {
       const Field& field = it->second;
       count++;
-
-      int maxcount=0;
+      int maxcount = 0;
       TLeaf* leafcounter = field.leaf->GetLeafCounter(maxcount);
 
       string lfsym("");
@@ -1650,31 +1763,36 @@ itreestream::str() const
       if ( leafcounter != 0 )
         {
           // This variable has a leaf counter
-          sprintf(record, "%5d %s \t/ %s (%d)\n",
+          sprintf(record, "%5d %s \t/ %s \t(%d) / %s",
                   count,
                   field.fullname.c_str(),
                   field.leaf->GetTypeName(),
-                  leafcounter->GetMaximum());
+                  leafcounter->GetMaximum(),
+		  leafcounter->GetName());
         }
       else
         {
           // This variable does not have a leaf counter
           maxcount = field.leaf->GetLen();
           if ( maxcount > 1 )
-            sprintf(record, "%5d %s \t/ %s [%d]\n",
+            sprintf(record, "%5d %s \t/ %s [%d]",
                     count,
                     field.fullname.c_str(),
                     field.leaf->GetTypeName(), 
                     maxcount);
           else
-            sprintf(record, "%5d %s\t/ %s%s\n",
+            sprintf(record, "%5d %s \t/ %s%s",
                     count,
                     field.fullname.c_str(),
                     field.leaf->GetTypeName(),
                     lfsym.c_str());
         }
-      out << record;
+      records.push_back(record);
     }
+  
+  sort(records.begin(), records.end());
+  for(size_t c=0; c < records.size(); c++)
+    out << records[c] << endl;
   return out.str();
 }
 
@@ -1693,9 +1811,27 @@ itreestream::str() const
 // ------------------------------------------------------------------------
 void 
 itreestream::_select(string namen, void* address, int maxsize, char srctype,
-                     bool isvector)
+                     int isvector)
 {
   _statuscode = kSUCCESS;
+  
+  // If namen does not specify a tree name, then  default to first tree name
+  bool treename_specified = false;
+  for(size_t i=0; i < _treenames.size(); i++)
+    {
+      DBUG(string("_select - treename( ") + _treenames[i] + string(" )"));
+      string key = _treenames[i] + string("/");
+      if ( namen.find(key) != std::string::npos )
+	{
+	  treename_specified = true;
+	  break;
+	}
+    }
+  if ( ! treename_specified )
+    {
+      namen = _treename + "/" + namen;
+      DBUG("_select - WARNING - treename not specified - use: " + _treename);
+    }
 
   // If variable has already been selected, just update its address and
   // source type, otherwise get the branch and leaf.
@@ -1707,66 +1843,9 @@ itreestream::_select(string namen, void* address, int maxsize, char srctype,
          << " srctype: " << srctype
          << " isvector: " << isvector
          << endl;
-
-#ifdef PROJECT_NAME
-
-  // If this is a regular expression, expand to full name of branch
   
-  boost::regex e("[+&*?<>=()]|[[][^0-9]+[]]");
-  boost::smatch w;
-  
-  if ( boost::regex_search(namen, w, e) )
-    {
-      // This seems like a regular expression
-
-      TString tnom(namen.c_str());
-      namen = tnom.ReplaceAll("*",".*") + "\\b"; // Add a boundary
-
-      if ( DEBUGLEVEL > 0 )
-        cout << "_select REGEX( " << namen << " )" << endl;
-
-      vector<string> mnames;
-      string nom = namen;
-      
-      if ( DEBUGLEVEL > 0 )
-        cout << "_select DATA.COUNT( " << data.size() << " )" << endl;
-
-      Data::iterator it;
-      for(it=data.begin(); it != data.end(); it++)
-        {
-          Field& field = it->second;
-          string name = field.fullname;
-
-          if ( DEBUGLEVEL > 0 )
-            cout << "_select(" << nom << ")[" << name << "]" << endl;
-
-          boost::regex e2(nom);
-          boost::smatch w2;
-          if ( boost::regex_search(name, w2, e2) ) 
-            {
-              namen = name;
-              mnames.push_back(namen);
-              if ( DEBUGLEVEL > 0 )
-                cout << "_select - EXPAND: " << nom << " --> " 
-                     << namen << endl;
-            }
-        }
-
-      // Fall on sword if regex selection is not unique
-
-      if ( mnames.size() > 1 )
-        {
-          string rec("");
-          for(int i=0; i < (int)mnames.size(); i++) rec += "\n\t" + mnames[i];
-          fatal("_select - regex selection " + nom + 
-                " is not unique:" + rec); 
-        }
-    }
-#endif
- 
-
   if ( DEBUGLEVEL > 0 )
-    cout << "_select - NAMEN(" << namen << ")" << endl;
+    cout << "_select - field name(" << namen << ")" << endl;
 
   // Check for new name
   if ( selecteddata.find(namen) != selecteddata.end() )
@@ -1795,7 +1874,9 @@ itreestream::_select(string namen, void* address, int maxsize, char srctype,
           // Current field has a leaf counter
           
           TBranch* branch = leafcounter->GetBranch();
-          string name_(branch->GetName());
+	  // get full names
+          string name_(string(branch->GetTree()->GetName()) +
+		       "/" + string(branch->GetName()));
           
           if ( DEBUGLEVEL > 1 )
             cout << "_select - " << namen << " needs counter " 
@@ -1815,8 +1896,8 @@ itreestream::_select(string namen, void* address, int maxsize, char srctype,
               // If the caller does not need it, then the address field 
               // should remain zero.
               
-              Field& f = data[name_];  // NB: Get a reference, not a copy!
-              f.srctype = 'I';         // Default source type
+              Field& f  = data[name_];  // NB: Get a reference, not a copy!
+              f.srctype = 'I';          // Default source type
               f.maxsize = 1;
               f.iscounter = true;
               selecteddata[name_] = &f;
@@ -1832,13 +1913,13 @@ itreestream::_select(string namen, void* address, int maxsize, char srctype,
 
 // ------------------------------------------------------------------------
 // Update the branch and leaf pointers. We do this when we switch from one 
-// tree to another in a chain of Root-files.
+// tree, or trees, to another in a chain of Root-files.
 // ------------------------------------------------------------------------
 void 
 itreestream::_update()
 {
   _statuscode = kSUCCESS; 
-  if ( _chain != 0 ) 
+  if ( _chain != 0 )
     _current = _chain->GetTreeNumber();
   else
     _current = _tree->GetTreeNumber();
@@ -1849,29 +1930,155 @@ itreestream::_update()
       Field* field = it->second;
       if ( field == 0 )  fatal("update - zero field pointer");
 
-      TBranch* branch = _tree->GetBranch(field->branchname.c_str());
-      if ( branch == 0 )
+      if ( field->chain == 0 ) fatal("update - zero field->chain pointer");
+      
+      field->branch = field->chain->GetBranch(field->branchname.c_str());
+      if ( field->branch == 0 )
         { 
-          warning("update - pointer is zero for branch " 
-                  + field->branchname);
+          fatal("update - pointer is zero for tree/branch (" 
+                  + field->fullname + ")");
           field->branch = 0;
           field->leaf   = 0;
           continue;
         }
-      TLeaf* leaf = branch->GetLeaf(field->leafname.c_str());
-      if ( leaf == 0 ) fatal("update - pointer is zero for leaf "
+      field->leaf = field->branch->GetLeaf(field->leafname.c_str());
+      if ( field->leaf == 0 ) fatal("update - pointer is zero for leaf "
                              + field->leafname);
 
-      field->branch = branch;
-      field->leaf   = leaf;
-
-      // We let Root handle vector types directly
+      // Let Root handle types that are stored as STL vectors
       if ( field->iotype == 'v')
         {
-          _chain->SetBranchAddress(field->branchname.c_str(), 
-                                   &field->address, 
-                                   &field->branch);
-        }
+	  if ( field->isvector == 1 )
+	    {
+	      switch(field->srctype)
+		{
+		case 'D':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<double>**)&field->address),
+						 &field->branch);
+		  break;
+        
+		case 'F':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<float>**)&field->address),
+						 &field->branch);
+		  break;
+		  
+		case 'L':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<long>**)&field->address),
+						 &field->branch);
+		  break;
+
+		case 'I':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<int>**)&field->address),
+						 &field->branch);
+		  break;
+
+		case 'S':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<short>**)&field->address),
+						 &field->branch);
+		  break;
+
+		case 'B':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<char>**)&field->address),
+						 &field->branch);
+		  break;
+
+		case 'O':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<bool>**)&field->address),
+						 &field->branch);
+		  break;
+
+		case 'C':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<string>**)&field->address),
+						 &field->branch);
+		  break;
+		  
+		case 'l':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<unsigned long>**)&field->address),
+						 &field->branch);
+		  break;
+        
+		case 'i':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<unsigned int>**)&field->address),
+						 &field->branch);
+		  break;
+	      
+		case 's':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<unsigned short>**)&field->address),
+						 &field->branch);
+		  break;
+	      
+		case 'b':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<unsigned char>**)&field->address),
+						 &field->branch);
+		  break;
+		  
+		default:
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<double>**)&field->address),
+						 &field->branch);
+		  break;
+		}	  	      
+	    }
+	  else
+	    {
+	      // handle vector<vector<T> >
+	      switch(field->srctype)
+		{
+		case 'D':	      
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<vector<double> >**)&field->address),
+						 &field->branch);
+		  break;
+	      
+		case 'F':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<vector<float> >**)&field->address),
+						 &field->branch);
+		  break;
+        
+		case 'L':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<vector<long> >**)&field->address),
+						 &field->branch);
+		  break;
+
+		case 'I':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<vector<int> >**)&field->address),
+						 &field->branch);
+
+		case 'l':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<vector<unsigned long> >**)
+						  &field->address),
+						 &field->branch);
+		  break;
+
+		case 'i':
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<vector<unsigned int> >**)
+						  &field->address),
+						 &field->branch);
+		default:
+		  field->chain->SetBranchAddress(field->branchname.c_str(), 
+						 ((vector<double>**)&field->address),
+						 &field->branch);
+		  break;
+		}	  
+	    }
+	}
       else if ( field->maxsize < 1 )
         fatal("_update - external buffer for " 
               + field->fullname + " is of zero length!");
@@ -2012,9 +2219,8 @@ otreestream::close(bool closefile)
 
   if ( closefile )
     {
-      _file->Write("", TObject::kOverwrite);
-      _file->Close();
-
+      _file->Write(0, TObject::kOverwrite); //kWriteDelete
+      _file->Close(); // causes a crash in ROOT 
       delete _file;
 
       _tree = 0;
@@ -2034,15 +2240,11 @@ otreestream::name() { return _tree ? _tree->GetName() : ""; }
 string
 otreestream::title() { return _tree ? _tree->GetTitle() : ""; }
 
-void
-otreestream::add(string namen, double& datum, char iotype)
-{
 
-  // The last two variables are the source type and I/O type of variable.
-  // We allow for the possibility that they may differ. For instance,
-  // we may work with doubles but wish only to store floats.
-  
-  _add(namen, &datum, 1, 'D', iotype);
+void
+otreestream::add(string namen, double& datum)
+{
+  _add(namen, &datum, 1, 'D', 'D');
 }
 
 void
@@ -2070,12 +2272,6 @@ otreestream::add(string namen, short& datum)
 }
 
 void
-otreestream::add(string namen, char& datum)
-{
-  _add(namen, &datum, 1, 'B', 'B');
-}
-
-void
 otreestream::add(string namen, bool& datum)
 {
   _add(namen, &datum, 1, 'O', 'O');
@@ -2088,12 +2284,6 @@ otreestream::add(string namen, string& datum)
 }
 
 void
-otreestream::add(string namen, unsigned long& datum)
-{
-  _add(namen, &datum, 1, 'l', 'l');
-}
-
-void
 otreestream::add(string namen, unsigned int& datum)
 {
   _add(namen, &datum, 1, 'i', 'i');
@@ -2102,15 +2292,15 @@ otreestream::add(string namen, unsigned int& datum)
 void
 otreestream::add(string namen, unsigned short& datum)
 {
-  _add(namen, &datum, 1, 'l', 'l');
+  _add(namen, &datum, 1, 's', 's');
 }
 
 // Vectors
 
 void 
-otreestream::add(string namen, vector<double>& d, char iotype)
+otreestream::add(string namen, vector<double>& d)
 {
-  _add(namen, &d, d.size(), 'D', iotype, true);
+  _add(namen, &d, d.size(), 'D', 'D', true);
 }
 
 void 
@@ -2138,21 +2328,9 @@ otreestream::add(string namen, vector<short>& d)
 }
 
 void 
-otreestream::add(string namen, vector<char>& d)
-{
-  _add(namen, &d, d.size(), 'B', 'B', true);
-}
-
-void 
 otreestream::add(string namen, vector<bool>& d)
 {
   _add(namen, &d, d.size(), 'O', 'O', true);
-}
-
-void 
-otreestream::add(string namen, vector<unsigned long>& d)
-{
-  _add(namen, &d, d.size(), 'l', 'l', true);
 }
 
 void 
@@ -2207,87 +2385,95 @@ otreestream::store()
       assert(field);
       assert(field->leaf);
 
-      DBUG("\tcommit - variable: " + string(field->leaf->GetName()));
-
-      // Ok, get the count. If the variable has a leafcounter that we
-      // know about, get the count set by the caller and use it if it
-      // is smaller than the external buffer size.
-
-      int size1 = getexsize(field);
       if ( DEBUGLEVEL > 0 )
-        cout << "\tcommit - getexsize: " << size1 
-             << "\tfield->maxsize: " << field->maxsize << endl;
+	cout << "commit( " + string(field->leaf->GetName()) << " )" << endl;
 
-      int count = min(size1, field->maxsize);
+      // if this is a leaf counter; apparently, need to store explicitly (Root v6.16/00)
+      if ( field->iscounter )
+	{
+	  fromexternal<int>(field);
+	  continue;
+	}
+      
+      // Ok, get the count for this variable.
+      int len = getexsize(field);
+      if ( DEBUGLEVEL > 0 )
+	cout << "\tcommit size: " << len 
+	     << "\tfield->maxsize: " << field->maxsize << endl;
+      
+      field->size = min(len, field->maxsize); // update count
+
+      if ( DEBUGLEVEL > 0 )
+	cout << "\tfield->size: " << field->size << endl;      
+      
+      // If the variable has a leafcounter update size field of the leaf counter
       int flag = 0;
       TLeaf* leafcounter = field->leaf->GetLeafCounter(flag);
       if ( leafcounter != 0 )
-        {
-          string name_(leafcounter->GetName());
-          DBUG("\t\t- leaf counter: " + name_);
+	{
+	  string name_(leafcounter->GetName());
+	  if ( DEBUGLEVEL > 0 )
+	    cout << "\tfound leaf counter( " << name_ << " ) size: " << field->size
+		 << "\tfor " << field->leaf->GetName() << endl;
+	  if ( selecteddata.find(name_) != selecteddata.end() )
+	    selecteddata[name_]->size = field->size;
+	  else
+	    fatal("no selectedata structure for leaf count " + name_);
+	}
+       
 
-          if ( selecteddata.find(name_) != selecteddata.end() )
-            //count = min(count, exvalue<int>(selecteddata[name_]));
-            count = min(count, 
-                        static_cast<int>(getexvalue(selecteddata[name_])));
-
-          if ( DEBUGLEVEL > 1 )
-            cout << "\t\t - with count: " << count << endl;
-        }
-
-      //if ( count == 0 ) fatal("exvalue: count is zero");
-
-      // Copy data to internal from external buffers
+      
+      // Copy data to internal buffers from external buffers
       // iotype <- srctype
 
       switch(field->iotype)
         {
         case 'D':
-          fromexternal<double>(field, count);
+          fromexternal<double>(field);
           break;
           
         case 'F':
-          fromexternal<float> (field, count);
+          fromexternal<float> (field);
           break;
           
         case 'L':
-          fromexternal<long>  (field, count);
+          fromexternal<long>  (field);
           break;
           
         case 'I':
-          fromexternal<int>   (field, count);
+          fromexternal<int>   (field);
           break;
 
         case 'S':
-          fromexternal<short> (field, count);
+          fromexternal<short> (field);
           break;
 
         case 'B':
-          fromexternal<char> (field, count);
+          fromexternal<char> (field);
           break;
 
         case 'O':
-          fromexternal<bool> (field, count);
+          fromexternal<bool> (field);
           break;
 
         case 'C':
-          fromexternal<string> (field, count);
+          fromexternal<string> (field);
           break;
 
         case 'l':
-          fromexternal<unsigned long>  (field, count);
+          fromexternal<unsigned long>  (field);
           break;
           
         case 'i':
-          fromexternal<unsigned int>   (field, count);
+          fromexternal<unsigned int>   (field);
           break;
 
         case 's':
-          fromexternal<unsigned short> (field, count);
+          fromexternal<unsigned short> (field);
           break;
           
         default:
-          fromexternal<double>(field, count);
+          fromexternal<double>(field);
           break;
         }
     }
@@ -2366,46 +2552,54 @@ otreestream::ls(ostream& out)
 // ------------------------------------------------------------------------
 void 
 otreestream::_add(string namen, void* address, int maxsize,
-                  char srctype, char iotype, bool isvector)
+                  char srctype, char iotype, int isvector)
 {
-  DBUG("_add: BEGIN");
+  DBUG("\n_add: BEGIN");
 
+  DBUG(string("_add: srctype: ") + srctype + string("\tiotype: ") + iotype);
+    
   _statuscode = kSUCCESS;
   if ( maxsize < 1 )
-    fatal("add - external buffer for " 
-          + namen + " is of zero length!");
-
+    fatal("add - external buffer for " + namen + " is of zero length!");
+  
   int k = namen.find("/");
   if ( k > -1 ) namen = namen.substr(0, k);
 
   // Get format
-
   char format[256];
-  char IOtype[2]; IOtype[0] = iotype; IOtype[1]=0;
+  char IOtype[2] = {iotype, 0};
   sprintf(format, "%s/%s", namen.c_str(), IOtype);
-
 
   // This could be a variable length array with name: <name>[countername].
   // if so, strip away [<countername>]
   k = namen.rfind("[");
+  string countername("");
   if ( k >= 0 )
     {
+      int j = namen.rfind("]");
+      countername = namen.substr(k+1, j-k-1);
       namen = namen.substr(0,k);
     }
 
+  if ( DEBUGLEVEL > 0 )
+    cout << "variable( " << namen << " ) countername(" <<  countername << ")" << endl;
+  
   // If branch is not present, create it; otherwise 
   // just set the source address.
 
   if ( selecteddata.find(namen) == selecteddata.end() )
-    {      
+    {        
       Field field;
-      field.srctype = srctype;
-      field.iotype  = iotype;
-      field.address = address; // Source address
-      field.maxsize = maxsize;
-      field.isvector= isvector;
-      field.branchname = namen;
-
+      field.srctype   = srctype;
+      field.iotype    = iotype;
+      field.address   = address; // Source address
+      field.maxsize   = maxsize;
+      field.size      = 0;
+      field.isvector  = isvector;
+      field.branchname= namen;
+      field.fullname  = namen;
+      field.countername = countername;
+      
       // Allocate a buffer of appropriate type and size
       // and create a corresponding branch
 
@@ -2432,15 +2626,15 @@ otreestream::_add(string namen, void* address, int maxsize,
           break;
 
         case 'B':
-          createbranch<char> (_tree, &field, format, selecteddata);
+          createbranch<char>  (_tree, &field, format, selecteddata);
           break;
 
         case 'O':
-          createbranch<int>  (_tree, &field, format, selecteddata);
+          createbranch<int>   (_tree, &field, format, selecteddata);
           break;
 
         case 'C':
-          createbranch<string> (_tree, &field, format, selecteddata);
+          createbranch<string>(_tree, &field, format, selecteddata);
           break;
 
         case 'l':
@@ -2456,7 +2650,7 @@ otreestream::_add(string namen, void* address, int maxsize,
           break;
     
         case 'b':
-          createbranch<unsigned char> (_tree, &field, format, selecteddata);
+          createbranch<unsigned char>  (_tree, &field, format, selecteddata);
           break;
 
         default:
@@ -2476,82 +2670,3 @@ std::ostream& operator<<(std::ostream& os, const otreestream& tuple)
   return os;
 }
 
-
-//////////////////////////////////////////////////////////////////////////////
-
-#ifdef __TEST__
-
-#include <iomanip>
-#include "TRandom3.h"
-
-int main()
-{
-  cout << endl << endl << "Read/Write Test" << endl << endl;
-
-  otreestream oustream("test.root", "Events", "Test");
-
-  int njet = 0;
-  oustream.add("njet", njet);
-
-  vector<double> jetet(20);
-  oustream.add("jetEt[njet]",jetet);
-
-  string str(80, 0);
-  oustream.add("str", str);
-
-  TRandom3 rand;
-  int entries = 10;
-  int step    = 1;
-  for(int entry=0; entry < entries; entry++)
-    {
-      njet = rand.Integer(10);
-      jetet.clear();
-      for(int i=0; i < njet; i++) 
-        jetet.push_back(rand.Exp(10));
-
-      char rec[80];
-      string delim(entry+1, '-');
-      sprintf(rec, "event: %d %s njet: %d", entry + 1, delim.c_str(), njet);
-      str = string(rec);
- 
-      oustream.commit();
-
-      if ( entry % step == 0 )
-        cout << setw(5) << entry 
-             << setw(5) << jetet.size()  
-             << setw(10)<< jetet[0] 
-             << " (" << str << ")"
-             << endl;
-    }
-  oustream.close();
-
-
-  itreestream stream("test.root", "Events");
-  
-  int nentries = stream.entries();
-  //cout << endl << "Number of entries " << nentries << endl;
-  cout << stream << endl;
-
-  vector<float> JETET(20, -1);
-  string STR;
-
-  stream.select("jetEt", JETET);
-  stream.select("str", STR);
-  
-  for(int entry=0; entry < nentries; entry++)
-    {
-      stream.read(entry);
-
-      if ( entry % step == 0 )
-        cout << setw(5) << entry 
-             << setw(5) << JETET.size()  
-             << setw(10)<< JETET[0]
-             << " (" << STR << ")"
-             << endl;
-    }
-
-  stream.close();
-  return 0;
-}
-
-#endif
