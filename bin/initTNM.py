@@ -18,7 +18,7 @@ if pwd != "TheNtupleMaker":
 
 # Make scripts executable
 
-os.system("chmod +x scripts/*.py")
+os.system("chmod +x bin/*.py")
 
 if "CMSSW_BASE" not in os.environ:
         sys.exit("\t* Please remember \n\t\tcmsenv\n")
