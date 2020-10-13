@@ -22,12 +22,14 @@ In spite of the complexity of the data formats used by collaborations such as CM
 
 TNM, which was developed by Harrison Prosper and Sezen Sekmen starting in 2009, is the first realization of this idea and the first step towards the ultimate goal of creating an online portal, with something like TNM as a backend, in which access to particle physics data would be a matter of making intuitive queries about what data are available, learning their provenance and meaning, selecting them, pressing a button and creating an ntuple that can be transparently accessed using ROOT or whatever ROOT evolves into.
 
+@todo: UPDATE __DOCUMENTATION__
+
+
 ## Documentation <a name="documentation"></a>
 
 Detailed documentation of TNM including installation instructions and simple and advanced use cases is
 provided in [TheNtupleMaker.pdf](https://github.com/hbprosper/TheNtupleMaker/blob/master/docs/TheNtupleMaker.pdf) (also found under docs/).
 
-__DOCUMENTATION__ TO DO UPDATED
 
 ## Installation <a name="installation"></a>
 
