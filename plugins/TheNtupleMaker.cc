@@ -30,9 +30,9 @@
      value of each method called (once, per event, for every instance 
      of an object of a given type) is stored in a variable whose address 
      is known to Root. The buffer object has two methods: init(...) and 
-     fill(...). The init(...) method tells the buffer which methods of
-     the associated class to call. The fill(...) method calls these
-     methods and caches their return values. The commit() method of the
+     get(...). The init(...) method tells the buffer which methods of
+     the associated class to call. The get(...) method calls these
+     methods and caches their return values. The Fill() method of the
      n-tuple object writes the cached values to the n-tuple.
 
      The buffers are allocated dynamically via the CMS plugin mechanism. (The
@@ -81,8 +81,8 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   cfg(iConfig), 
   //ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")),
   tree(fs->make<TTree>("Events", 
-			 string("created by TheNtupleMaker " 
-			 + TNM_VERSION).c_str())),
+		       string("created by TheNtupleMaker " 
+			      + TNM_VERSION).c_str())),
   buffers(std::vector<BufferThing*>()),
   swatch(TStopwatch()),
   maxEvents(-1),//iConfig.getParameter<int>("maxEvents")),
@@ -202,6 +202,18 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
       macroname_ = "";
     }
 
+  // The default is to include the label in the branch name
+  try
+    {
+      includeLabel_ = iConfig.
+	getUntrackedParameter<bool>("includeLabel"));
+    }
+  catch (...)
+    {
+      includeLabel_ = true;
+    }
+
+  
   // --------------------------------------------------------------------------
 
   macroEnabled_ = macroname_ != "";
@@ -435,13 +447,16 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
       // n-tuple variable prefix
       if ( field.size() > 3 ) 
         prefix = field[3];
-      else if ( prefix == "" )
-        // replace double colon with an "_"
-        prefix = kit::replace(label, "::", "_");       
-      else if (label != "")
-        // replace double colon with an "_"
-        prefix += string("_") + kit::replace(label, "::", "_");
-
+      else if ( includeLabel_ )
+	{
+	  if ( prefix == "" ) // a simple type
+	    // replace double colon with an "_"
+	    prefix = kit::replace(label, "::", "_");       
+	  else if (label != "")
+	    // replace double colon with an "_"
+	    prefix += string("_") + kit::replace(label, "::", "_");
+	}
+      
       // Modify variable name by (optional) varprefix
       if ( varprefix != "" ) prefix +=  "_" + varprefix;
 
@@ -709,7 +724,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
 		className_[ii].c_str(), ii);
       
       cout << "   " 
-	   << BOLDGREEN << code 
+	   << GREEN << code 
 	   << DEFAULT_COLOR;
       
       gROOT->ProcessLine(code);
@@ -737,7 +752,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
 		  variables_[ii][jj].branchname.c_str());
 
 	  cout << "\t" 
-	       << BOLDYELLOW << code 
+	       << YELLOW << code 
 	       << DEFAULT_COLOR;
 	  gROOT->ProcessLine(code);
 
@@ -1191,17 +1206,46 @@ TheNtupleMaker::createBranchnames(std::string blockName,
       branchset.insert(branchname);
 
       if ( varname == "" )
-	vout << rtype << "/" 
-	     << branchname  << "/"
-	     << blockName << "/"
-	     << maxcount 
-	     << std::endl;
+	{
+	  vout << rtype << " " 
+	       << branchname  << " "
+	       << blockName << " "
+	       << maxcount 
+	       << std::endl;
+	  if ( maxcount < 2 )
+	    {
+	      vout << rtype << " " 
+		   << branchname  << " "
+		   << blockName
+		   << maxcount 
+		   << std::endl;
+	    }
+	  else
+	    {
+	      vout << "vector<" << rtype << "> " 
+		   << branchname  << " "
+		   << blockName
+		   << std::endl;	  
+	    }	  
+	}
       else
-	vout << rtype << "/" 
-	     << branchname  << "/"
-	     << blockName + "_" + varname << "/"
-	     << maxcount 
-	     << std::endl;
+	{
+	  if ( maxcount < 2 )
+	    {
+	      vout << rtype << " " 
+		   << branchname  << " "
+		   << blockName + "_" + varname << " "
+		   << maxcount 
+		   << std::endl;
+	    }
+	  else
+	    {
+	      vout << "vector<" << rtype << "> " 
+		   << branchname  << " "
+		   << blockName + "_" + varname
+		   << std::endl;	  
+	    }
+	}
       
       // Note: nvar <= i
       var[nvar].branchname   = branchname;

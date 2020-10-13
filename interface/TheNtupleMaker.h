@@ -76,23 +76,7 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
-const std::string TNM_VERSION("2.0.0 October 2020");
-
-///
-enum BufferType
-  {
-    EVENT,            // Buffer for event
-    RUNINFO,          // Buffer for RunInfo object
-    HELPER,           // Buffer for helped objects
-    NORMAL            // Buffer for other objects
-  };
-
-///
-enum ClassType
-  {
-    SINGLETON,        // At most one object per event
-    COLLECTION        // vector of objects
-  };
+const std::string TNM_VERSION("7.0.0 October 2020");
 
 // The two abstract classes below are needed to obtain polymorphic behavior
 // for Buffers and Variables.
@@ -208,7 +192,8 @@ private:
   std::string ntuplename_;
   std::string analyzername_;
   std::string macroname_;
-
+  bool includeLabel_;
+  
   int count_;
   int imalivecount_;
   int logger_;
