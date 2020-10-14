@@ -5,6 +5,7 @@ import FWCore.ParameterSet.Config as cms
 TNM = cms.EDAnalyzer(
     "TheNtupleMaker",
     #analyzerName = cms.untracked.string("analyzer.cc"),
+    includeLabel  = cms.untracked.bool(False),
 
 
     # NOTE: the names listed below will be the prefixes for

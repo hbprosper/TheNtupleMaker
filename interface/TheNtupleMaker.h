@@ -76,7 +76,7 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
-const std::string TNM_VERSION("7.0.0 October 2020");
+const std::string TNM_VERSION("7.0.1 October 2020");
 
 // The two abstract classes below are needed to obtain polymorphic behavior
 // for Buffers and Variables.
@@ -170,7 +170,8 @@ private:
 			 std::string prefix,
 			 int maxcount,
 			 std::vector<VariableDescriptor>& var,
-			 std::ofstream& vout);
+			 std::ofstream& vout,
+			 std::map<std::string, int>& bcount);
 
   const edm::ParameterSet    cfg;   /// Configuration
 
@@ -212,13 +213,6 @@ private:
   // cache decoded config data
   std::vector<std::map<std::string, std::string> > parameters_;
   std::vector<std::vector<VariableDescriptor> > variables_;
-  std::vector<std::string> className_;
-  std::vector<std::string> blockName_;
-  std::vector<std::string> bufferName_;
-  std::vector<std::string> label_;
-  std::vector<std::string> prefix_;
-  std::vector<int> maxcount_;
-  std::set<std::string> branchset;
 };
 
 // ----------------------------------------------------------------------------

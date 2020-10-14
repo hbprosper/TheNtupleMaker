@@ -80,9 +80,6 @@ using namespace std;
 TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   cfg(iConfig), 
   //ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")),
-  tree(fs->make<TTree>("Events", 
-		       string("created by TheNtupleMaker " 
-			      + TNM_VERSION).c_str())),
   buffers(std::vector<BufferThing*>()),
   swatch(TStopwatch()),
   maxEvents(-1),//iConfig.getParameter<int>("maxEvents")),
@@ -93,20 +90,18 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   haltlogger_(false),
   macroEnabled_(false),
   inputCount_(0),
-  HLTconfigured(false),
-
-  className_(vector<string>()),
-  blockName_(vector<string>()),
-  bufferName_(vector<string>()),
-  label_(vector<string>()),
-  prefix_(vector<string>()),
-  maxcount_(vector<int>()),
-  branchset(set<string>())
+  HLTconfigured(false)
 {
   cout << BOLDYELLOW << "\nTheNtupleMaker Configuration"
        << endl 
        << "maxEvents: " << maxEvents
        << DEFAULT_COLOR << endl; 
+
+
+  //fs->getBareDirectory()->Delete();
+  tree = fs->make<TTree>("Events", 
+			 string("created by TheNtupleMaker " 
+				+ TNM_VERSION).c_str());
 
   string config = string(iConfig.dump());
 
@@ -206,7 +201,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   try
     {
       includeLabel_ = iConfig.
-	getUntrackedParameter<bool>("includeLabel"));
+	getUntrackedParameter<bool>("includeLabel");
     }
   catch (...)
     {
@@ -310,6 +305,14 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   // get list of strings from buffer, decode them, and cache the results
   // NOTE: within TNM, block and buffer are used interchangeably
   // --------------------------------------------------------------------------
+
+  std::vector<std::string> className_;
+  std::vector<std::string> blockName_;
+  std::vector<std::string> bufferName_;
+  std::vector<std::string> label_;
+  std::vector<std::string> prefix_;
+  std::vector<int> maxcount_;
+
   vector<string> vrecords = cfg.
     getUntrackedParameter<vector<string> >("buffers");
 
@@ -447,15 +450,12 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
       // n-tuple variable prefix
       if ( field.size() > 3 ) 
         prefix = field[3];
-      else if ( includeLabel_ )
-	{
-	  if ( prefix == "" ) // a simple type
+      else if ( prefix == "" ) // a simple type
+	// replace double colon with an "_"
+	prefix = kit::replace(label, "::", "_");       
+      else if ( includeLabel_ && label != "" )
 	    // replace double colon with an "_"
-	    prefix = kit::replace(label, "::", "_");       
-	  else if (label != "")
-	    // replace double colon with an "_"
-	    prefix += string("_") + kit::replace(label, "::", "_");
-	}
+	prefix += string("_") + kit::replace(label, "::", "_");
       
       // Modify variable name by (optional) varprefix
       if ( varprefix != "" ) prefix +=  "_" + varprefix;
@@ -671,14 +671,16 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   // Write branches and variables to variables file 
   
   ofstream vout("variables.txt");
-  vout << "tree: Events " << ct << endl;
+  vout << "Tree: Events " << ct << endl;
   
+  map<string, int> branchcount;
   for(size_t ii=0; ii < blockName_.size(); ii++)
     createBranchnames(blockName_[ii],
 		      prefix_[ii],
 		      maxcount_[ii],
 		      variables_[ii],
-		      vout);
+		      vout,
+		      branchcount);
   vout.close();
 
   // --------------------------------------------------------------
@@ -752,7 +754,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
 		  variables_[ii][jj].branchname.c_str());
 
 	  cout << "\t" 
-	       << YELLOW << code 
+	       << CYAN << code 
 	       << DEFAULT_COLOR;
 	  gROOT->ProcessLine(code);
 
@@ -1112,7 +1114,8 @@ TheNtupleMaker::createBranchnames(std::string blockName,
 				  std::string prefix,
 				  int maxcount,
 				  std::vector<VariableDescriptor>& var,
-				  ofstream& vout)
+				  ofstream& vout,
+				  map<string, int>& branchcount)
 {
   // Define regular expressions to check for compound methods; 
   // i.e., methods of the form 
@@ -1146,8 +1149,9 @@ TheNtupleMaker::createBranchnames(std::string blockName,
 
   // Define variables destined for the output tree  
   // For every method, create the associated n-tuple branch name
+
   int nvar = 0;
-  for(unsigned i=0; i < var.size(); i++)
+  for(size_t i=0; i < var.size(); i++)
     {    
       std::string rtype   = var[i].rtype;
       std::string method  = var[i].method;
@@ -1183,68 +1187,42 @@ TheNtupleMaker::createBranchnames(std::string blockName,
       if ( varname != "") branchname += "." + varname;
 
       // check for uniqueness
-      if ( branchset.find(branchname) != branchset.end() )
+      if ( branchcount.find(branchname) == branchcount.end() )
+	{
+	  // unique name
+	  branchcount[branchname] = 1;
+	}
+      else
         {
-	  // the branchname is not unique, so make it so
-          std::string newbranchname =
-            prefix + "_" + blockName + "." + varname;
-            
-          edm::LogWarning("BranchnameNotUnique")
-            << "Fee fi fo fum\n"
-            << "I smell the blood of an Englishman\n"
-            << "Be he alive, or be he dead\n"
-            << "I'll grind his bones to make my bread\n"
-            << "This branch (" 
-            << BOLDRED << branchname 
-            << DEFAULT_COLOR << ") is NOT unique!\n"
-            << "Changed name to \n"
-            << BOLDBLUE << newbranchname
-            << DEFAULT_COLOR 
-            << std::endl;
-          branchname = newbranchname;
+	  // non-unique name
+	  int  nn = branchcount[branchname];
+	  char num[12];
+	  sprintf(num, "%d", nn);
+	  nn++;
+	  branchcount[branchname] = nn;
+          branchname = prefix + string(num) + "_" + "." + varname;
         }
-      branchset.insert(branchname);
+
+      // check if we need to dress type with vector<...>
+      string dressed_rtype = rtype;
+      if ( maxcount > 1 ) 
+	dressed_rtype = string("vector<") + rtype + string(">");
 
       if ( varname == "" )
 	{
-	  vout << rtype << " " 
-	       << branchname  << " "
-	       << blockName << " "
+	  vout << dressed_rtype << " " 
+	       << branchname << " "
+	       << blockName  << " "
 	       << maxcount 
 	       << std::endl;
-	  if ( maxcount < 2 )
-	    {
-	      vout << rtype << " " 
-		   << branchname  << " "
-		   << blockName
-		   << maxcount 
-		   << std::endl;
-	    }
-	  else
-	    {
-	      vout << "vector<" << rtype << "> " 
-		   << branchname  << " "
-		   << blockName
-		   << std::endl;	  
-	    }	  
 	}
       else
 	{
-	  if ( maxcount < 2 )
-	    {
-	      vout << rtype << " " 
-		   << branchname  << " "
-		   << blockName + "_" + varname << " "
-		   << maxcount 
-		   << std::endl;
-	    }
-	  else
-	    {
-	      vout << "vector<" << rtype << "> " 
-		   << branchname  << " "
-		   << blockName + "_" + varname
-		   << std::endl;	  
-	    }
+	  vout << dressed_rtype << " " 
+	       << branchname  << " "
+	       << blockName + "_" + varname << " "
+	       << maxcount 
+	       << std::endl;
 	}
       
       // Note: nvar <= i
@@ -1252,7 +1230,7 @@ TheNtupleMaker::createBranchnames(std::string blockName,
       var[nvar].maxcount   = maxcount;
       var[nvar].method   = method;
 
-      if ( DEBUG > 1 )
+      if ( DEBUG > 0 )
 	std::cout << "   " << nvar << ":\t" << BOLDGREEN 
 		  << branchname 
 		  << "\t" << DEFAULT_COLOR << method << std::endl;

@@ -7,15 +7,68 @@
 # Created  2 Apr 2012 Harrison B. Prosper
 #         24 Jan 2014 HBP: call scram set lhapdffull
 #         30 Sep 2020 HBP; remove setting of lhapdfull since it no longer 
-#                     exists  
+#                     exists
+#         13 Oct 2020 HBP; get treestream from github.  
 #------------------------------------------------------------------------------
 import os, sys
 #------------------------------------------------------------------------------
 pwd = str.split(os.environ["PWD"],"/")[-1]
 if pwd != "TheNtupleMaker":
         print("\n\t* Please run this script from the TheNtupleMaker directory")
-        sys.exit("\t    python scripts/initTNM.py [CMG]")
+        sys.exit("\t    python scripts/initTNM.py")
 
+#------------------------------------------------------------------------------
+# download treestream
+#------------------------------------------------------------------------------
+cmd = '''
+rm -rf treestream
+git clone git://github.com/hbprosper/treestream
+'''
+try:
+        print(cmd)
+        os.system(cmd)
+except:
+        cmd = '''
+rm -rf treestream
+git clone https://github.com/hbprosper/treestream
+'''
+        print(cmd)
+        os.system(cmd)
+
+if not os.path.exists("treestream"):
+        sys.exit('''
+*** Problem downloading treestream from 
+        https://github.com/hbprosper/treestream
+
+try, by hand, either
+        git clone git://github.com/hbprosper/treestream
+or
+        git clone https://github.com/hbprosper/treestream
+then do
+        cp treestream/bin/mkvariables.py scripts/
+        cp treestream/bin/mkanalyzer.py scripts/
+        cp treestream/bin/mklist.py scripts/
+        cp treestream/include/pdg.h interface/
+        cp treestream/include/treestream.h interface 
+        cp treestream/src/pdg.cc src/
+        cp treestream/src/treestream.cc src/
+        cp -r treestream/tnm .
+        rm -rf treestream    
+''')
+cmd = '''
+cp treestream/bin/mkvariables.py scripts/
+cp treestream/bin/mkanalyzer.py scripts/
+cp treestream/bin/mklist.py scripts/ 
+cp treestream/include/pdg.h interface/
+cp treestream/include/treestream.h interface 
+cp treestream/src/pdg.cc src/
+cp treestream/src/treestream.cc src/
+cp -r treestream/tnm .
+rm -rf treestream 
+'''
+print(cmd)
+os.system(cmd)
+#------------------------------------------------------------------------------
 # Make scripts executable
 
 os.system("chmod +x scripts/*.py")
@@ -58,5 +111,4 @@ print(cmd)
 os.system(cmd)
 
 
-
-
+print("\ndone!\n")
