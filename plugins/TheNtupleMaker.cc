@@ -70,35 +70,106 @@
 //
 // $Id: TheNtupleMaker.cc,v 1.23 2013/07/05 07:15:14 prosper Exp $
 // ---------------------------------------------------------------------------
+#include <memory>
+#include <vector>
+#include <string>
+#include <cmath>
+#include <iostream>
+#include <fstream>
+#include <cassert>
+#include <map>
+#include <time.h>
+#include <stdlib.h>
+
 #include "PhysicsTools/TheNtupleMaker/interface/TheNtupleMaker.h"
+#include "PhysicsTools/TheNtupleMaker/interface/CurrentEvent.h"
+#include "PhysicsTools/TheNtupleMaker/interface/Configuration.h"
+#include "PhysicsTools/TheNtupleMaker/interface/kit.h"
 #include "DataFormats/PatCandidates/interface/Flags.h"
+
+// File service for output ROOT files
+#include "FWCore/ServiceRegistry/interface/Service.h"
+#include "CommonTools/UtilAlgos/interface/TFileService.h"
+
+#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
+
+#include "TStopwatch.h"
 // ---------------------------------------------------------------------------
 using namespace std;
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
-TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
-  cfg(iConfig), 
-  //ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")),
-  buffers(std::vector<BufferThing*>()),
-  swatch(TStopwatch()),
-  maxEvents(-1),//iConfig.getParameter<int>("maxEvents")),
-  macroname_(""),
-  count_(0),
-  imalivecount_(1000),
-  logger_(0),
-  haltlogger_(false),
-  macroEnabled_(false),
-  inputCount_(0),
-  HLTconfigured(false)
+// These variables/objects can be global. They do not have to be private
+// variables of TheNtupleMaker
+// ---------------------------------------------------------------------------
+namespace {
+  // output ROOT file (n-tuple).
+  edm::Service<TFileService> fs;
+  
+  TTree* tree;                     /// Output tree
+  
+  // allocated buffers, one per object to be read.
+  std::vector<BufferThing*> buffers;
+  
+  TStopwatch swatch;  
+  int        maxEvents(-1);
+  
+  // addresses of buffers
+  std::map<std::string, BufferThing*> buffermap;
+  
+  int DEBUG;
+  std::string ntuplename_;
+  std::string analyzername_;
+  std::string macroname_;
+  bool includeLabel_(true);
+  
+  int count_(0);
+  int imalivecount_(1000);
+  int logger_(0);
+  bool haltlogger_(false);
+  bool macroEnabled_(false);
+  
+  TTree* ptree_;
+  //int inputCount_;
+  
+  // for HLT
+  edm::InputTag triggerResults_;
+  HLTConfigProvider HLTconfig_;
+  bool HLTconfigured;
+  std::vector<std::string> triggerNames_;
+  
+  // cache decoded config data
+  std::vector<std::map<std::string, std::string> > parameters_;
+  std::vector<std::vector<VariableDescriptor> > variables_;
+
+  std::string DirectoryName;
+
+};
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+
+TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
+  //: ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")),
+  // buffers(std::vector<BufferThing*>()),
+  // swatch(TStopwatch()),
+  // maxEvents(-1),//iConfig.getParameter<int>("maxEvents")),
+  // macroname_(""),
+  // count_(0),
+  // imalivecount_(1000),
+  // logger_(0),
+  // haltlogger_(false),
+  // macroEnabled_(false),
+  // inputCount_(0),
+  // HLTconfigured(false)
 {
   cout << BOLDYELLOW << "\nTheNtupleMaker Configuration"
        << endl 
        << "maxEvents: " << maxEvents
        << DEFAULT_COLOR << endl; 
 
+  DirectoryName = iConfig.getParameter<string>("@module_label");
 
-  //fs->getBareDirectory()->Delete();
   tree = fs->make<TTree>("Events", 
 			 string("created by TheNtupleMaker " 
 				+ TNM_VERSION).c_str());
@@ -136,7 +207,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
 
   // --------------------------------------------------------------------------
   // Cache global configuration
-  Configuration::instance().set(cfg);
+  Configuration::instance().set(iConfig);
     
   // Get optional configuration parameters
 
@@ -313,7 +384,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   std::vector<std::string> prefix_;
   std::vector<int> maxcount_;
 
-  vector<string> vrecords = cfg.
+  vector<string> vrecords = iConfig.
     getUntrackedParameter<vector<string> >("buffers");
 
   for(unsigned ii=0; ii < vrecords.size(); ii++)
@@ -328,7 +399,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
 	     << endl; 
       
       // Get description of variables for current buffer
-      vector<string> bufferrecords = cfg.
+      vector<string> bufferrecords = iConfig.
         getUntrackedParameter<vector<string> >(blockName);
 
       // ----------------------------------------------------------------
@@ -671,8 +742,16 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig) :
   // Write branches and variables to variables file 
   
   ofstream vout("variables.txt");
-  vout << "Tree: Events " << ct << endl;
-  
+  if ( DirectoryName !=  "")
+    vout << "Tree: " 
+	 << DirectoryName << "/" 
+	 << tree->GetName() << " " 
+	 << ct << endl;
+  else
+    vout << "Tree: " 
+	 << tree->GetName() << " " 
+	 << ct << endl;
+
   map<string, int> branchcount;
   for(size_t ii=0; ii < blockName_.size(); ii++)
     createBranchnames(blockName_[ii],
@@ -1270,6 +1349,8 @@ TheNtupleMaker::endJob()
 
   //output.close();
 }
+
+TTree* TheNtupleMaker::getTree() { return tree; }
 
 //define this as a plug-in
 DEFINE_FWK_MODULE(TheNtupleMaker);

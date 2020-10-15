@@ -1,11 +1,10 @@
 #-------------------------------------------------------------------------
-# Created: Mon Oct 12 17:29:59 2020 by mkntuplecfi.py
+# Created: Tue Oct 13 22:11:56 2020 by mkntuplecfi.py
 #-------------------------------------------------------------------------
 import FWCore.ParameterSet.Config as cms
 TNM = cms.EDAnalyzer(
     "TheNtupleMaker",
     #analyzerName = cms.untracked.string("analyzer.cc"),
-    includeLabel  = cms.untracked.bool(False),
 
 
     # NOTE: the names listed below will be the prefixes for
@@ -31,12 +30,16 @@ TNM = cms.EDAnalyzer(
     BeamSpot = cms.untracked.vstring(
     'reco::BeamSpot                  offlineBeamSpot                   1',
     #---------------------------------------------------------------------
+        'double  x0()',
+        'double  y0()',
         'double  z0()'
     ),
 
     L1EmParticle = cms.untracked.vstring(
     'l1extra::L1EmParticle           l1extraParticles_Isolated        50',
     #---------------------------------------------------------------------
+        'int  charge()',
+        'double  energy()',
         'double  pt()',
         'double  phi()',
         'double  eta()'
@@ -46,15 +49,17 @@ TNM = cms.EDAnalyzer(
     'pat::Jet                        slimmedJets                      50',
     #---------------------------------------------------------------------
         'double  pt()',
-        'double  phi()',
-        'double  eta()'
+        'double  eta()',
+        'float  jetArea()',
+        'double  mass()'
     ),
 
     Jet1 = cms.untracked.vstring(
     'pat::Jet                        slimmedJetsAK8                   50',
     #---------------------------------------------------------------------
         'double  pt()',
-        'double  phi()',
-        'double  eta()'
+        'double  eta()',
+        'float  jetArea()',
+        'double  mass()'
     )
 )

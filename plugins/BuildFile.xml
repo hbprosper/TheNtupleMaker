@@ -8,7 +8,6 @@
 <use   name="PhysicsTools/PatUtils"/>
 
 <use   name="AnalysisDataFormats/EWK"/>
-<use   name="AnalysisDataFormats/Egamma"/>
 <use   name="AnalysisDataFormats/SUSYBSMObjects"/>
 <use   name="AnalysisDataFormats/TopObjects"/>
 <use   name="AnalysisDataFormats/TrackInfo"/>
@@ -69,8 +68,6 @@
 <use   name="DataFormats/TrackReco"/>
 <use   name="DataFormats/TrackerCommon"/>
 <use   name="DataFormats/TrackerRecHit2D"/>
-<use   name="DataFormats/TrackingSeed"/>
-<use   name="DataFormats/TrajectorySeed"/>
 <use   name="DataFormats/V0Candidate"/>
 <use   name="DataFormats/VertexReco"/>
 <use   name="SimDataFormats/CaloHit"/>

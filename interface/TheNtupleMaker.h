@@ -36,15 +36,10 @@
 #include <boost/regex.hpp>
 #include <boost/python/type_id.hpp>
 #include <boost/algorithm/string.hpp>
-#include <memory>
 #include <vector>
 #include <string>
-#include <cmath>
 #include <iostream>
 #include <fstream>
-#include <cassert>
-#include <set>
-#include <time.h>
 #include <stdlib.h>
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -54,30 +49,59 @@
 #include "DataFormats/Common/interface/Handle.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 
-// File service for output ROOT files
-#include "FWCore/ServiceRegistry/interface/Service.h"
-#include "CommonTools/UtilAlgos/interface/TFileService.h"
+#include "PhysicsTools/TheNtupleMaker/interface/colors.h"
 
-// Handle High Level Triggers (HLT)
-#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
-
-// Some TNM utilities
-#include "PhysicsTools/TheNtupleMaker/interface/kit.h"
-#include "PhysicsTools/TheNtupleMaker/interface/CurrentEvent.h"
-#include "PhysicsTools/TheNtupleMaker/interface/Configuration.h"
-
-// ROOT libraries
 #include "TROOT.h"
 #include "TTree.h"
-#include "TFile.h"
-#include "TLorentzVector.h"
-#include "TStopwatch.h"
 #include "TInterpreter.h"
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 const std::string TNM_VERSION("7.0.1 October 2020");
 
+class VariableDescriptor;
+
+class TheNtupleMaker : public edm::EDAnalyzer 
+{
+public:
+  explicit TheNtupleMaker(const edm::ParameterSet&);
+  virtual ~TheNtupleMaker();
+  virtual void beginJob();
+  virtual void beginRun(const edm::Run&, const edm::EventSetup&);
+  virtual void analyze(const edm::Event&, const edm::EventSetup&);
+  virtual void endJob();
+
+  template <typename T>
+  edm::EDGetTokenT<T> getToken(std::string label)
+  {
+    // Split Label into its component parts
+    std::string label1 = label;
+    std::string label2("");
+    int i = label.find("_");
+    if ( i > 0 )
+      {
+	label1 = label.substr(0,i);      
+	label2 = label.substr(i+1, label.size()-i-1);
+      }
+    return consumes<T>(edm::InputTag(label1, label2));
+  }
+
+  TTree* getTree();
+  
+private:
+
+  bool selectEvent(const edm::Event& iEvent);
+  void updateTriggerBranches(int blockindex);
+  void createBranchnames(std::string blockName,  
+			 std::string prefix,
+			 int maxcount,
+			 std::vector<VariableDescriptor>& var,
+			 std::ofstream& vout,
+			 std::map<std::string, int>& bcount);
+};
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 // The two abstract classes below are needed to obtain polymorphic behavior
 // for Buffers and Variables.
 
@@ -130,89 +154,6 @@ struct VariableDescriptor
   std::string varname;     /// Name of variable derived from method
   std::string branchname;  /// Name of branch associated with method
   int         maxcount;    /// Maximum count associated with method
-};
-
-// ----------------------------------------------------------------------------
-// ----------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-class TheNtupleMaker : public edm::EDAnalyzer 
-{
-public:
-  explicit TheNtupleMaker(const edm::ParameterSet&);
-  virtual ~TheNtupleMaker();
-  virtual void beginJob();
-  virtual void beginRun(const edm::Run&, const edm::EventSetup&);
-  virtual void analyze(const edm::Event&, const edm::EventSetup&);
-  virtual void endJob();
-
-  template <typename T>
-  edm::EDGetTokenT<T> getToken(std::string label)
-  {
-    // Split Label into its component parts
-    std::string label1 = label;
-    std::string label2("");
-    int i = label.find("_");
-    if ( i > 0 )
-      {
-	label1 = label.substr(0,i);      
-	label2 = label.substr(i+1, label.size()-i-1);
-      }
-    return consumes<T>(edm::InputTag(label1, label2));
-  }
-
-  TTree* getTree() { return tree; }
-  
-private:
-
-  bool selectEvent(const edm::Event& iEvent);
-  void updateTriggerBranches(int blockindex);
-  void createBranchnames(std::string blockName,  
-			 std::string prefix,
-			 int maxcount,
-			 std::vector<VariableDescriptor>& var,
-			 std::ofstream& vout,
-			 std::map<std::string, int>& bcount);
-
-  const edm::ParameterSet    cfg;   /// Configuration
-
-  // output ROOT file (n-tuple).
-  edm::Service<TFileService> fs;
-
-  TTree* tree;                     /// Output tree
-
-  // allocated buffers, one per object to be read.
-  std::vector<BufferThing*> buffers;
-
-  TStopwatch swatch;  
-  int        maxEvents;
-
-  // addresses of buffers
-  std::map<std::string, BufferThing*> buffermap;
-
-  int DEBUG;
-  std::string ntuplename_;
-  std::string analyzername_;
-  std::string macroname_;
-  bool includeLabel_;
-  
-  int count_;
-  int imalivecount_;
-  int logger_;
-  bool haltlogger_;
-  bool macroEnabled_;
-
-  TTree* ptree_;
-  int inputCount_;
-
-  // for HLT
-  edm::InputTag triggerResults_;
-  HLTConfigProvider HLTconfig_;
-  bool HLTconfigured;
-  std::vector<std::string> triggerNames_;
-
-  // cache decoded config data
-  std::vector<std::map<std::string, std::string> > parameters_;
-  std::vector<std::vector<VariableDescriptor> > variables_;
 };
 
 // ----------------------------------------------------------------------------
