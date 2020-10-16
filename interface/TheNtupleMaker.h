@@ -31,6 +31,7 @@
 //                                   move to Root 6)
 //
 //                   Thu Oct 08 2020 HBP - rebuild using ROOT JIT compiler
+//                   Thu Oct 15 2020 HBP - make it possible to store bools.
 // $Id: TheNtupleMaker.cc,v 1.23 2013/07/05 07:15:14 prosper Exp $
 // ---------------------------------------------------------------------------
 #include <boost/regex.hpp>
@@ -50,6 +51,7 @@
 #include "FWCore/Framework/interface/MakerMacros.h"
 
 #include "PhysicsTools/TheNtupleMaker/interface/colors.h"
+#include "PhysicsTools/TheNtupleMaker/interface/tnmutil.h"
 
 #include "TROOT.h"
 #include "TTree.h"
@@ -57,10 +59,13 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
-const std::string TNM_VERSION("7.0.1 October 2020");
-
+namespace {
+  const std::string TNM_VERSION("7.0.1 October 2020");
+  char TNM_RECORD[10000];
+  int DEBUG(0);
+};
 class VariableDescriptor;
-
+// ----------------------------------------------------------------------------
 class TheNtupleMaker : public edm::EDAnalyzer 
 {
 public:
@@ -89,7 +94,6 @@ public:
   TTree* getTree();
   
 private:
-
   bool selectEvent(const edm::Event& iEvent);
   void updateTriggerBranches(int blockindex);
   void createBranchnames(std::string blockName,  
@@ -167,7 +171,7 @@ struct VariableDescriptor
     RTYPE - return type
 */
 template <typename X, typename RTYPE>
-struct Variable : public VariableThing
+  struct Variable : public VariableThing
 {
   virtual ~Variable() {}
   
@@ -180,135 +184,48 @@ struct Variable : public VariableThing
    */
   Variable(std::string method_, int maxcount_, std::string branchname_)
   {
-    char record[8000];
-
     // create name of getter class
-    sprintf(record, "Getter%d", count);
-    getter_classname  = std::string(record);
+    sprintf(TNM_RECORD, "Getter%d", count);
+    getter_classname  = std::string(TNM_RECORD);
 
     // create name of getter instance
-    sprintf(record, "getter%d", count);
-    getter_objectname = std::string(record);
+    sprintf(TNM_RECORD, "getter%d", count);
+    getter_objectname = std::string(TNM_RECORD);
 
     // value is the buffer to receive return data from getter
     value      = std::vector<RTYPE>(maxcount_);
-    
+
     method     = method_;
     maxcount   = maxcount_;
     branchname = branchname_;
     otype      = boost::python::type_id<X>().name();
     rtype      = boost::python::type_id<RTYPE>().name();
-
-    // check if object is a simple type
-    boost::regex getsimpletype("^(float|double|int|long|unsigned"
-			       "|size_t|short|bool|char|string|std::string)");
-    boost::smatch matchtype;
-    std::string otype_lower = otype;
-    boost::algorithm::to_lower(otype_lower);
-    bool simpletype = boost::regex_search(otype_lower, 
-					  matchtype, getsimpletype);
-
-    // check if object is a vector type or a singleton
-    // TODO: make this more robust
-    bool vectortype= maxcount > 1;
-
     // --------------------------------------------------
     // write getter class to handle call to method.
     // Note, however, that X can be either a simple type, 
     // an object or a vector of simple types or objects.
     // we need sightly different code for each case.
     // --------------------------------------------------
-    std::string methodstr;
-    if ( vectortype )
+    std::string code = tnm_write_code(getter_classname,
+				      getter_objectname,
+				      method,
+				      otype,
+				      rtype,
+				      maxcount,
+				      count);
+    if ( DEBUG < 0 )
       {
-	// we have vector: either of objects or simple types
-	if ( simpletype )
-	  methodstr = ""; // there is no spoon!
-	else
-	  methodstr = std::string(".") + method;
-
-	sprintf(record,
-		"struct %s\n"
-		"{\n"
-		"  void get(const void* oaddr, const void* vaddr)\n"
-		"  {\n"
-		"    const std::vector<%s>* o = "
-		"(const std::vector<%s>*)oaddr;\n"
-		"    std::vector<%s>* v = (std::vector<%s>*)vaddr;\n"
-		"    v->clear();\n"
-		"    try\n"
-		"      {\n"
-		"        size_t n = min(o->size(), (size_t)%d);\n"
-		"        for(size_t c = 0;  c < n; c++)\n"
-		"          v->emplace_back( o->at(c)%s );\n"
-		"      }\n"
-		"    catch (...)\n"
-		"      {\n"
-		"        std::cout << \"FAILED CALL \" << std::endl;\n"
-		"      }\n"
-		"  }\n"
-		"};\n"
-		"%s %s;\n"
-		"long unsigned int* addr%d = (long unsigned int*)%s;\n"
-		"*addr%d = (long unsigned int)&%s;\n",
-		getter_classname.c_str(),
-		otype.c_str(), otype.c_str(),
-		rtype.c_str(), rtype.c_str(),
-		maxcount,
-		methodstr.c_str(),
-		getter_classname.c_str(), getter_objectname.c_str(),
-		count, "0x%lx",
-		count, getter_objectname.c_str());
+	std::cout << BOLDYELLOW 
+		  << "--------------------------------------------------------"
+		  << DEFAULT_COLOR << std::endl;
+	std::cout << BOLDGREEN << code << DEFAULT_COLOR << std::endl;
       }
-    else
-      {
-	// we have singleton: either an object or a simple type
-	if ( simpletype )
-	  methodstr = "*o"; // there is no spoon!
-	else
-	  methodstr = std::string("o->") + method;
-
-	sprintf(record,
-		"struct %s\n"
-		"{\n"
-		"  void get(const void* oaddr, const void* vaddr)\n"
-		"  {\n"
-		"    const %s* o = (const %s*)oaddr;\n"
-		"    std::vector<%s>* v = (std::vector<%s>*)vaddr;\n"
-		"    v->clear();\n"
-		"    try\n"
-		"      {\n"
-		"        v->emplace_back( %s );\n"
-		"      }\n"
-		"    catch (...)\n"
-		"      {\n"
-		"        std::cout << \"FAILED CALL \" << std::endl;\n"
-		"      }\n"
-		"  }\n"
-		"};\n"
-		"%s %s;\n"
-		"long unsigned int* addr%d = (long unsigned int*)%s;\n"
-		"*addr%d = (long unsigned int)&%s;\n",
-		getter_classname.c_str(),
-		otype.c_str(), otype.c_str(),
-		rtype.c_str(), rtype.c_str(),
-		methodstr.c_str(),
-		getter_classname.c_str(), getter_objectname.c_str(),
-		count, "0x%lx",
-		count, getter_objectname.c_str());      
-      }
-
-    /**
-    std::cout << BOLDYELLOW 
-	      << "-----------------------------------------------------------"
-	      << DEFAULT_COLOR << std::endl;
-    std::cout << BOLDGREEN << record << DEFAULT_COLOR << std::endl;
-    */
+	
     // --------------------------------------------------
     // compile with JIT compiler and return address of
     // getter class instance
     // --------------------------------------------------
-    gROOT->ProcessLine(Form(record, &address));
+    gROOT->ProcessLine(Form(code.c_str(), &address));
 
     // --------------------------------------------------
     // get object representing getter class
@@ -362,8 +279,23 @@ struct Variable : public VariableThing
     // assume that maxcount > 1 => a collection and a singleton otherwise
     if ( maxcount > 1 )
       tree->Branch(branchname.c_str(), &value);
+    else if ( maxcount == 1 )
+      {
+	// hack to get around taking the address of a "temporary".
+	// while it is true that value can be of zero length, the
+	// address of value[0] does not change during the job.
+	// therefore, it is safe to use it. the const is needed to
+	// make the compiler happy, but non-const is needed to 
+	// make ROOT happy!
+	const RTYPE& t = value[0]; // a reference not a copy
+	tree->Branch(branchname.c_str(), (RTYPE*)&t);
+      }
     else
-      tree->Branch(branchname.c_str(), &value[0]);
+      throw edm::Exception(edm::errors::Configuration,
+			   "cfg error: "
+			   + BOLDRED +
+			   "maxcount < 1 for " + branchname
+			   + DEFAULT_COLOR);
   }
 
   std::string branchname;          /// name of branch associated with method
@@ -372,14 +304,15 @@ struct Variable : public VariableThing
   std::string method;              /// method
   std::string getter_classname;    /// name of getter class
   std::string getter_objectname;   /// name of getter instance
-  int         maxcount;            /// maximum count/variable
-  
+
+  int         maxcount;            /// maximum count/variable  
   std::vector<RTYPE> value;        /// buffer for returned values
 
   TClass*  getter_class;           /// pointer to getter class
   TMethod* getter;                 /// pointer to get method of getter class
   long unsigned int address;       /// adress of getter class instance
 };
+
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------

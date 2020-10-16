@@ -173,17 +173,22 @@ isSimpleType = re.compile('^(unsigned long|long'\
 			  '|unsigned int|int'\
 			  '|unsigned short|short'\
 			  '|bool|float|double|char|std::string|string)')
+
 isSimpleVectorType = re.compile(r'(?<=vector\<)'\
                                 '(unsigned long|long'\
                                 '|unsigned int|int'\
                                 '|unsigned short|short'\
                                 '|bool|float|double|char|std::string|string)'\
 				'(?=\>)')
-AvectorValue = re.compile(r'(?<=vector\<).+?(?=\>)')
-methodname   = re.compile(r'(?<= ).+(?=[(])')
 
-# Strip away vector< etc.
-stripvector = re.compile(r'vector\<|\>| ')
+isSimpleVectorVectorType = re.compile(r'(?<=vector\<vector\<)'\
+                                '(unsigned long|long'\
+                                '|unsigned int|int'\
+                                '|unsigned short|short'\
+                                '|bool|float|double|char|std::string|string)'\
+				'(?=\>)')
+vectorValue  = re.compile(r'(?<=vector\<).+?(?=\>)')
+methodname   = re.compile(r'(?<= ).+(?=[(])')
 
 # Strip away :: and vector<..>
 stripname   = re.compile(r'::|vector\<|\>| ')
@@ -729,7 +734,8 @@ class Gui:
                         # check for simple types.
 			s = isSimpleType.findall(cname)
 			v = isSimpleVectorType.findall(cname)
-			simpleType = len(s) > 0 or len(v) > 0
+			vv= isSimpleVectorVectorType.findall(cname)
+			simpleType = len(s) > 0 or len(v) > 0 or len(vv) > 0
 
                         # do nothing if this is a simple type
                         if simpleType:
@@ -1277,20 +1283,25 @@ class Gui:
 			avectorType= cname.find("edm::AssociationVector") > -1
 			if avectorType: continue
 
-                        #print("STEP(3)")
+                        #print("STEP(3) %s / %s" % (cname, simpleType))
 
 			# create a blockName from cname
                         if simpleType:
-                                blockName = label
+                                t = vectorValue.findall(cname)
+                                if len(t) > 0: cname = t[0]
+                                blockName = labels[0]
                                 blockName = blockName.capitalize()
+                                # strip away possible vector decoration
                         else:
-                                # complex type; strip away possible
-                                # vector decoration
-                                cname     = stripvector.sub("", cname)
+                                # complex type
+                                # strip away possible vector decoration
+                                t = vectorValue.findall(cname)
+                                if len(t) > 0: cname = t[0]
                                 blockName = str.replace(cname, 'Helper', '')
                                 blockName = stripnsp.sub("", blockName)
 
-                        #print("STEP(4) %s / %s" % (cname, blockName))
+                        #print("STEP(4) %s / %s / %s" % \
+                        #      (cname, blockName, labels))
                         
 			blocks.append(blockName)
 			databuf[blockName] = {}

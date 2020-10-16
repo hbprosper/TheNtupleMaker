@@ -117,7 +117,6 @@ namespace {
   // addresses of buffers
   std::map<std::string, BufferThing*> buffermap;
   
-  int DEBUG;
   std::string ntuplename_;
   std::string analyzername_;
   std::string macroname_;
@@ -135,7 +134,7 @@ namespace {
   // for HLT
   edm::InputTag triggerResults_;
   HLTConfigProvider HLTconfig_;
-  bool HLTconfigured;
+  bool HLTconfigured(false);
   std::vector<std::string> triggerNames_;
   
   // cache decoded config data
@@ -150,22 +149,12 @@ namespace {
 // ---------------------------------------------------------------------------
 
 TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
-  //: ntuplename_(iConfig.getUntrackedParameter<string>("ntupleName")),
-  // buffers(std::vector<BufferThing*>()),
-  // swatch(TStopwatch()),
-  // maxEvents(-1),//iConfig.getParameter<int>("maxEvents")),
-  // macroname_(""),
-  // count_(0),
-  // imalivecount_(1000),
-  // logger_(0),
-  // haltlogger_(false),
-  // macroEnabled_(false),
-  // inputCount_(0),
-  // HLTconfigured(false)
 {
+  if ( getenv("DBTheNtupleMaker") > 0 )
+      DEBUG = atoi(getenv("DBTheNtupleMaker"));
+
   cout << BOLDYELLOW << "\nTheNtupleMaker Configuration"
        << endl 
-       << "maxEvents: " << maxEvents
        << DEFAULT_COLOR << endl; 
 
   DirectoryName = iConfig.getParameter<string>("@module_label");
@@ -323,12 +312,6 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
   //     string macrocmd = macroname_ + string(" obj(tree,varmap,indexmap);");
   //     gROOT->ProcessLine(macrocmd.c_str());
   //   }
-
-  if ( getenv("DBTheNtupleMaker") > 0 )
-    DEBUG = atoi(getenv("DBTheNtupleMaker"));
-  else
-    DEBUG = 0;
-
   // --------------------------------------------------------------------------
   // Decode buffer information and cache info. The buffers are created in this
   // constructor. However, some variables for triggers are added in
@@ -446,23 +429,21 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       // ----------------------------------------------------------------
       // In the ROOT 5 version of TNM, the bufferName is given, not 
       // the className, so we need to extract the className from the 
-      // bufferName to maintain backwards compatibility.
+      // bufferName to maintain backwards compatibility by checking for
+      // known namespaces. If none is found then assume that the className
+      // is the same as the bufferName
       // ----------------------------------------------------------------
-      if ( !simpletype and (className == bufferName) )
+      if ( className == bufferName )
 	{
-	  if ( boost::regex_search(bufferName, matchnspace, getnspace) )
+	  if ( !simpletype )
 	    {
-	      string nspace = matchnspace[0];
-	      className = kit::replace(bufferName, nspace, nspace+string("::"));
+	      if ( boost::regex_search(bufferName, matchnspace, getnspace) )
+		{
+		  string nspace = matchnspace[0];
+		  className = kit::replace(bufferName, 
+					   nspace, nspace+string("::"));
+		}
 	    }
-	  else
-            // Have a tantrum!
-            throw edm::Exception(edm::errors::Configuration,
-                                 "cfg error: " + BOLDRED +
-                                 "unable to translate " +
-				 bufferName + 
-				 " to class name"
-				 " or a simple type" + DEFAULT_COLOR);
 	}
 
       if ( DEBUG > 0 )
@@ -1110,7 +1091,7 @@ TheNtupleMaker::beginRun(const edm::Run& run,
               edm::LogInfo("HLTConfigChanged") 
                 << "The HLT configuration has changed"
                 << std::endl;
-             }          
+	    }          
 
           // Update trigger names file
 
@@ -1289,17 +1270,17 @@ TheNtupleMaker::createBranchnames(std::string blockName,
 
       if ( varname == "" )
 	{
-	  vout << dressed_rtype << " " 
-	       << branchname << " "
-	       << blockName  << " "
+	  vout << dressed_rtype << "/" 
+	       << branchname << "/"
+	       << blockName  << "/"
 	       << maxcount 
 	       << std::endl;
 	}
       else
 	{
-	  vout << dressed_rtype << " " 
-	       << branchname  << " "
-	       << blockName + "_" + varname << " "
+	  vout << dressed_rtype << "/" 
+	       << branchname  << "/"
+	       << blockName + "_" + varname << "/"
 	       << maxcount 
 	       << std::endl;
 	}
