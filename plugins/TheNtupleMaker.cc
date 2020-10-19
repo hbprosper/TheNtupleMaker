@@ -372,8 +372,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
 
   for(unsigned ii=0; ii < vrecords.size(); ii++)
     {
-      // The buffer (block) name will be used as the name of the C++ struct, 
-      // if one is created.
+      // Get the buffer (block) name
       string blockName = vrecords[ii];
 
       if ( DEBUG > 0 ) 
@@ -389,42 +388,59 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       // Decode first record which should contain the EDM class name,
       // getByToken label and max count, with the exception of 
       // buffer Event, which requires only the first field, 
-      // namely edm::Event or if we have a simple type.
+      // namely edm::Event. Note, however, instead of an EDM class
+      // or a Helper, we could have a simple type or a vector of
+      // simple types.
       // ----------------------------------------------------------------
       string record = bufferrecords[0];
 
-      // If current buffer is a Helper, create a parameter set specific
-      // to the Helper. 
+      // get type: either 
+      // 1. a class 
+      // 2. a simple type
+      // 3. a vector of simple types
+      // we need to handle types such as unsigned int, unsigned long etc.
+
+      // check for simple type
+      boost::regex simpletype_("^((float|double|int|long|unsigned|"
+			      "size_t|short|bool|char|"
+			      "string|std::string) ?)+");
+      // check for vector of simple types
+      boost::regex vectortype_("^vector[<](float|double|int|long|unsigned|"
+			      "size_t|short|bool|char|"
+			      "string|std::string).*[>]");
+      boost::smatch matchtype;
+
+      bool simpletype = false;
+      bool vectortype = false;
+
+      // Split first record into fields such that field[0] contains the
+      // type
+      if ( boost::regex_search(record, matchtype, simpletype_) )
+	{
+	  simpletype = true;
+	  string oldstr = kit::strip(matchtype[0]);
+	  string newstr = kit::replace(oldstr, " ", "@");
+	  record = kit::replace(record, oldstr, newstr);
+	}
+      else if ( boost::regex_search(record, matchtype, vectortype_) )
+	{
+	  vectortype = true;
+	  string oldstr = kit::strip(matchtype[0]);
+	  string newstr = kit::replace(oldstr, " ", "@");
+	  record = kit::replace(record, oldstr, newstr);
+	} 
+      vector<string> field;
+      kit::split(record, field);
+      field[0] = kit::replace(field[0], "@", " ");
+      // note: if className is a simple type, then there are no methods.
+      string className = field[0];
 
       // Structure containing information about the methods to be called
       // for current buffer.
       vector<VariableDescriptor> var;
 
-      // Split first record into fields
-      vector<string> field;
-      kit::split(record, field);
-
       // The bufferName is the className stripped of "::"
-      string className = field[0]; // EDM classname
       string bufferName= kit::replace(className, "::", "");
-
-      if ( DEBUG > 0 )
-        cout << "  className: " 
-	     << BOLDCYAN << className
-	     << DEFAULT_COLOR
-	     << "\tbufferName: " 
-	     << BOLDYELLOW << bufferName
-	     << DEFAULT_COLOR 
-	     << endl;
-      
-      // if bufferName is a simple type, then there are no methods.
-      boost::regex getsimpletype("^(float|double|int|long|unsigned"
-				 "|size_t|short|bool|char|string|std::string)");
-      boost::smatch matchtype;
-      std::string bufferName_lower = bufferName;
-      boost::algorithm::to_lower(bufferName_lower);
-      bool simpletype = boost::regex_search(bufferName_lower, 
-					    matchtype, getsimpletype);
 
       // ----------------------------------------------------------------
       // In the ROOT 5 version of TNM, the bufferName is given, not 
@@ -433,9 +449,10 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
       // known namespaces. If none is found then assume that the className
       // is the same as the bufferName
       // ----------------------------------------------------------------
+      bool simple_type = simpletype || vectortype;
       if ( className == bufferName )
 	{
-	  if ( !simpletype )
+	  if ( !simple_type )
 	    {
 	      if ( boost::regex_search(bufferName, matchnspace, getnspace) )
 		{
@@ -447,18 +464,20 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
 	}
 
       if ( DEBUG > 0 )
-        cout << "  className: " 
-	     << BOLDGREEN << className
-	     << DEFAULT_COLOR
+        cout << "  className: (" 
+	     << BOLDCYAN << className
+	     << DEFAULT_COLOR << ")"
 	     << "\tbufferName: " 
 	     << BOLDYELLOW << bufferName
 	     << DEFAULT_COLOR 
+	     << "\tsimple type: " << simpletype
+	     << "\tvector type: " << vectortype
 	     << endl;
       
       // The bufferName is the first part of the branch name associated 
       // with a method unless bufferName is a simple type.
       string prefix = "";
-      if ( !simpletype ) prefix = bufferName;
+      if ( !simple_type ) prefix = bufferName;
       string varprefix = "";
       string label("");
       int maxcount=1;
@@ -543,7 +562,7 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
 
       std::map<std::string, std::string> parameters;
 
-     if ( simpletype )
+     if ( simple_type )
 	{
 	  var.push_back(VariableDescriptor(bufferName, "", ""));
 	}
@@ -746,12 +765,12 @@ TheNtupleMaker::TheNtupleMaker(const edm::ParameterSet& iConfig)
   // --------------------------------------------------------------
   // Create ntuple analyzer template if requested
   // --------------------------------------------------------------
-  // if ( analyzername_ != "" )
-  //   {
-  //     string cmd("mkanalyzer.py "  + kit::nameonly(analyzername_));
-  //     cout << cmd << endl;
-  //     kit::shell(cmd);
-  //   }
+  if ( analyzername_ != "" )
+    {
+      string cmd("mkanalyzer.py "  + kit::nameonly(analyzername_));
+      cout << cmd << endl;
+      kit::shell(cmd);
+    }
   
   // ---------------------------------------------------------------
   // Compile TheNtupleMaker header
