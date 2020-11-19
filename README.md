@@ -64,11 +64,11 @@ You may want to add the following commands to `.bash_profile` in your container
 alias ls="ls --color"
 PS1="docker/\W> "
 ```
-and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in `$HOME/CMSSW_3_5_32/src` and the command `cmsenv` may have already been executed while in that folder. If not, `cd` to that fold and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
+and do `source ~/.bash_profile` to tidy up the command line prompt. You should already be in `$HOME/CMSSW_3_5_32/src` and the command `cmsenv` may have already been executed. If not, `cd` to that folder and execute the command `cmsenv`. Then, to check that the X11 forwarding is working execute the command `root`. The `root` splash screen should appear. If it does, X11 forwarding is working.
 
 ### Download and build TheNtupleMaker
 
-Make sure you are in the folder `$HOME/CMSSW_5_3_32/src` before executing the command `cmsenv` in order to set up the CMSSW environment. Then do
+Make sure you are in the folder `$HOME/CMSSW_5_3_32/src` before executing the command `cmsenv`, which sets up the CMSSW environment. Then do
 ```bash
 mkdir PhysicsTools
 git clone git://github.com/hbprosper/TheNtupleMaker
@@ -82,13 +82,13 @@ This script makes a valiant attempt to guess which of the hundreds of C++ classe
 ```bash
 scram b -j K
 ```
-where *K* should be replaced with the number of cores at your disposal. If you don't know just omit the `-j` switch. If the build succeeds, which should take a few to about 10 minutes, you are ready to use TNM.
+where *K* should be replaced with the number of cores at your disposal. If you don't know just omit the `-j` switch and its value. If the build succeeds, which should take a few to about 10 minutes, you are ready to use TNM.
 
 ## Tutorial
 
 To configure the ntuple contents, you will need a sample from the EDM data from which you intend to make the ntuple.  The ROOT file needs to be either in your local area, or a soft link must be created (e.g. with the command `ln -s path-to-root-file myEDMsample.root`).  If you do not already have a sample locally, it is very easy to copy a sample with a small number of events from data in CMS storage locations using [this configuration file](https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookDataSamples#Copy_Data_Locally).
 
-The first thing to do is create, either by hand or better still using the script __mkntuplecfi.py__, a configuration specifying which methods are to be called to extract the desired data from the the EDM file. The script __mkntuplecfi.py__ allows you to make a first pass at building the configuration file. Run the command
+The first thing to do is create, either by hand or better still using the script __mkntuplecfi.py__, a configuration file specifying which methods are to be called to extract the desired data from the the EDM file. The script __mkntuplecfi.py__ allows you to make a first pass at building the configuration file. Run the command
 
 ```bash
 makentuplecfi.py 
@@ -102,7 +102,7 @@ The methods to be called by TNM are selected (or deselected) from the __Methods_
 
 When __mkntuplecfi.py__ runs for the first time, it creates three folders __methods__, __txt__, and __html__. The __methods__ folder lists the accessor methods of a subset of the available CMSSW clases, those most likely to be of interest. The folders __txt__ and __html__ provide similar information but in different formats. Here is an exhaustive listing of all access methods of the CMSSW class [reco::PFJet](http://hbprosper.github.io/TheNtupleMaker/DataFormats.JetReco.PFJet.PFJet.html). (Tip: use Command + click to open any link in another tab.)
 
-You can look at __python/ntuple_cfi.py__ to see the ntuple content.  As mentioned earlier, the GUI is just a tool to automate the creation of this configuration.  Once you have a starter __python/ntuple_cfi.py__, you can modify it by hand to extend its content.  You can also save __ntuple_cfi.py__ with a different name.  However, you must make sure that the name change is propagated to __TheNtupleMaker_cfg.py__ in order for TNM to know which ntuple content configuration to work with.
+You can look at __python/ntuple_cfi.py__ to see the ntuple content.  As mentioned earlier, the GUI is just a tool to automate the creation of this configuration file.  Once you have a starter __python/ntuple_cfi.py__, you can modify it by hand to extend its content.  You can also save __ntuple_cfi.py__ with a different name.  However, you must make sure that the name change is propagated to __TheNtupleMaker_cfg.py__ in order for TNM to know which ntuple content configuration file to work with.
 
 ### Runing TNM
 
@@ -126,7 +126,7 @@ If all goes well, you will find the file __analyzer_histograms.root__, which of 
 
 ### Interface with ADL
 
-We are currently taking the analysis code generation one step further.  We are developing a tool that will automatically produce a complete analysis code given the description of the analysis writtien using the domain specific analysis description language [ADL](http://adl.web.cern.ch/index.html).  A prototype tool, a transpiler called __adl2tnm__, has been developed that can automatically produce a complete, executable, analysis code given an ntuple.root and the analysis description written in ADL without any need for programming.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm). Note this tool is still very much at the proof of principle stage!
+We are currently taking the analysis code generation one step further.  We are developing a tool that will automatically produce a complete analysis code given the description of the analysis written using the domain specific language [ADL](http://adl.web.cern.ch/index.html).  A prototype tool, a transpiler called __adl2tnm__, has been developed that can automatically produce a complete, executable, analysis code given an ntuple.root from an analysis description written in ADL.  More information can be found in the [adl2tnm github repository](https://github.com/hbprosper/adl2tnm). Note this tool is still very much at the proof of principle stage and quite brittle!
 
 
 
