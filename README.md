@@ -45,7 +45,7 @@ If that does not work, try restarting your Mac, restart the docker daemon if it 
 
 ### 2. Create and run a docker container
 
-In the new terminal window create a container, here called *testme*, using the image *cmsopendata/cmssw_5_3_32*. (Of course, you can choose whatever name you like for the container. By the way, to remove a container do `docker rm <container-name>`.)
+In the new terminal window create a container, here called *testme*, using the image [cmsopendata/cmssw_5_3_32](https://opendata.cern.ch/docs/cms-guide-docker). (Of course, you can choose whatever name you like for the container. By the way, to remove a container do `docker rm <container-name>`.)
 ```bash
 docker run -it -v $HOME/.ssh:/home/cmsur/.ssh -v $HOME/.Xauthority:/home/cmsusr/.Xauthority -v $HOME:/home/cmsusr/hosthome --net=host --env="DISPLAY=`hostname`:0" --name testme cmsopendata/cmssw_5_3_32 /bin/bash
 ```
