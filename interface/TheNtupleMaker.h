@@ -43,9 +43,10 @@
 #include <fstream>
 #include <stdlib.h>
 
-#include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
 #include "FWCore/Framework/interface/Event.h"
+#include "FWCore/Framework/interface/Frameworkfwd.h"
+
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "DataFormats/Common/interface/Handle.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
@@ -60,7 +61,7 @@
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
 namespace {
-  const std::string TNM_VERSION("7.0.1 October 2020");
+  const std::string TNM_VERSION("7.0.2 December 2021");
   char TNM_RECORD[10000];
   int DEBUG(0);
 };
@@ -173,6 +174,7 @@ struct VariableDescriptor
 template <typename X, typename RTYPE>
   struct Variable : public VariableThing
 {
+
   virtual ~Variable() {}
   
   /** 
@@ -213,6 +215,11 @@ template <typename X, typename RTYPE>
 				      rtype,
 				      maxcount,
 				      count);
+    getter_code = code;
+    std::ofstream fout(".jit_code.cc");
+    fout << code << std::endl;
+    fout.close();
+
     if ( DEBUG < 0 )
       {
 	std::cout << BOLDYELLOW 
@@ -304,7 +311,7 @@ template <typename X, typename RTYPE>
   std::string method;              /// method
   std::string getter_classname;    /// name of getter class
   std::string getter_objectname;   /// name of getter instance
-
+  std::string getter_code;         /// code associated with variable
   int         maxcount;            /// maximum count/variable  
   std::vector<RTYPE> value;        /// buffer for returned values
 

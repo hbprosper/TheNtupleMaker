@@ -57,7 +57,8 @@ std::string tnm_write_code(std::string getter_classname,
 	      "      }\n"
 	      "    catch (...)\n"
 	      "      {\n"
-	      "        std::cout << \"FAILED CALL \" << std::endl;\n"
+              "        edm::LogWarning(\"FAILEDCALL\")\n" 
+              "          << \"%s %s\" << std::endl;\n"
 	      "      }\n"
 	      "  }\n"
 	      "};\n"
@@ -68,7 +69,7 @@ std::string tnm_write_code(std::string getter_classname,
 	      otype.c_str(), otype.c_str(),
 	      rtype.c_str(), rtype.c_str(),
 	      maxcount,
-	      methodstr.c_str(),
+	      methodstr.c_str(), getter_classname.c_str(), method.c_str(),
 	      getter_classname.c_str(), getter_objectname.c_str(),
 	      count, "0x%lx",
 	      count, getter_objectname.c_str());
@@ -95,7 +96,8 @@ std::string tnm_write_code(std::string getter_classname,
 	      "      }\n"
 	      "    catch (...)\n"
 	      "      {\n"
-	      "        std::cout << \"FAILED CALL \" << std::endl;\n"
+              "        edm::LogWarning(\"FAILEDCALL\")\n" 
+              "          << \"%s %s\" << std::endl;\n"
 	      "      }\n"
 	      "  }\n"
 	      "};\n"
@@ -105,7 +107,7 @@ std::string tnm_write_code(std::string getter_classname,
 	      getter_classname.c_str(),
 	      otype.c_str(), otype.c_str(),
 	      rtype.c_str(), rtype.c_str(),
-	      methodstr.c_str(),
+	      methodstr.c_str(), getter_classname.c_str(), method.c_str(),
 	      getter_classname.c_str(), getter_objectname.c_str(),
 	      count, "0x%lx",
 	      count, getter_objectname.c_str());      

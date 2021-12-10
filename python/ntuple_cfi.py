@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------------
-# Created: Thu Oct 15 10:31:07 2020 by mkntuplecfi.py
+# Created: Thu Dec  9 01:57:57 2021 by mkntuplecfi.py
 #-------------------------------------------------------------------------
 import FWCore.ParameterSet.Config as cms
 TNM = cms.EDAnalyzer(
@@ -11,78 +11,41 @@ TNM = cms.EDAnalyzer(
     #       the associated C++ variables created by mkanalyzer.py
 
     buffers = cms.untracked.vstring(
-        'Ak7pfjets_rho',
-        'Ak7pfjets_sigma',
-        'Ak7pfjets_rhos',
-        'Ak7pfjets_sigmas',
+        'Fixedgridrhoall',
+        'Fixedgridrhofastjetall',
         'BeamSpot',
-        'L1AcceptBunchCrossing',
-        'L1EmParticle',
-        'PFJet',
-        'PFJet1'
+        'Electron'
     ),
 
-    Ak7pfjets_rho = cms.untracked.vstring(
-    'double                          ak7PFJets_rho                     1'
+    Fixedgridrhoall = cms.untracked.vstring(
+    'double                          fixedGridRhoAll                   1'
     ),
 
-    Ak7pfjets_sigma = cms.untracked.vstring(
-    'double                          ak7PFJets_sigma                   1'
+    Fixedgridrhofastjetall = cms.untracked.vstring(
+    'double                          fixedGridRhoFastjetAll            1'
     ),
 
     BeamSpot = cms.untracked.vstring(
     'reco::BeamSpot                  offlineBeamSpot                   1',
     #---------------------------------------------------------------------
-        'double  z0()'
+        'double  x0()',
+        'double  y0()',
+        'double  z0()',
+        'double  sigmaZ()'
     ),
 
-    L1AcceptBunchCrossing = cms.untracked.vstring(
-    'L1AcceptBunchCrossing           scalersRawToDigi                 50',
+    Electron = cms.untracked.vstring(
+    'pat::Electron                   slimmedElectrons                 50',
     #---------------------------------------------------------------------
-        'string  name()',
-        'bool  empty()',
-        'unsigned int  bunchCrossing()'
-    ),
-
-    Ak7pfjets_rhos = cms.untracked.vstring(
-    'double                          ak7PFJets_rhos                   50'
-    ),
-
-    Ak7pfjets_sigmas = cms.untracked.vstring(
-    'double                          ak7PFJets_sigmas                 50'
-    ),
-
-    L1EmParticle = cms.untracked.vstring(
-    'l1extra::L1EmParticle           l1extraParticles_Isolated        50',
-    #---------------------------------------------------------------------
+        'int  charge()',
+        'double  p()',
+        'double  energy()',
+        'double  et()',
+        'double  px()',
+        'double  py()',
+        'double  pz()',
         'double  pt()',
         'double  phi()',
         'double  eta()'
-    ),
-
-    PFJet = cms.untracked.vstring(
-    'reco::PFJet                     ak5PFJets                        50',
-    #---------------------------------------------------------------------
-        'double  pt()',
-        'double  phi()',
-        'double  eta()',
-        'float  chargedHadronEnergy()',
-        'float  neutralHadronEnergy()',
-        'int  chargedHadronMultiplicity()',
-        'int  neutralHadronMultiplicity()',
-        'int  nConstituents()'
-    ),
-
-    PFJet1 = cms.untracked.vstring(
-    'reco::PFJet                     ak7PFJets                        50',
-    #---------------------------------------------------------------------
-        'double  pt()',
-        'double  phi()',
-        'double  eta()',
-        'float  chargedHadronEnergy()',
-        'float  neutralHadronEnergy()',
-        'int  chargedHadronMultiplicity()',
-        'int  neutralHadronMultiplicity()',
-        'int  nConstituents()'
     )
 )
